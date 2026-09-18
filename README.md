@@ -54,12 +54,14 @@ This fork keeps Surveyor's features, mod id, save format and network format, so 
 - Runs natively on NeoForge 21.1 — no Sinytra Connector or Fabric API. It replaces the original's Connector build; don't install both.
 - The configuration file uses NeoForge's format. The `recordIcons` table became the `disabledRecordIcons` list (icons not listed are recorded, as before).
 
-**Fixes**
+**Fixes** — bugs of the original, fixed here
 - Saving can no longer lose map data: a server stopping right after an autosave, a crash in the middle of writing a file, or two saves of the same file overlapping each used to be able to drop or corrupt a region.
 - Singleplayer is safe from races between the game and its built-in server, which could crash the game or drop freshly recorded chunks.
 - Friends are no longer shown as offline after every autosave.
 - Chunks you visit are recorded as explored even when the terrain system is turned off (setups that only use waypoints).
 - Map mods are always notified on the game's own thread, so every addon is safe in singleplayer.
+- A region's terrain is only unloaded once all of its chunks are. Before, only a quarter of the region was checked, so a region could be saved and dropped while you were still in it, then read back from disk.
+- A rare case where saving a region scrambled part of its terrain data (a value above 32767 overwrote its neighbour) is fixed.
 
 **Performance**
 - Recording a chunk no longer creates objects for every block it scans.
@@ -67,6 +69,7 @@ This fork keeps Surveyor's features, mod id, save format and network format, so 
 - Player positions are only sent when someone moves or turns, instead of every tick for every player.
 - The raycast that discovers structures you look at only runs when your view changes.
 - Asking for a group's shared map no longer copies every member's exploration.
+- Checking whether a region can be unloaded, done every time a chunk unloads, no longer creates hundreds of objects.
 
 ## Credits and license
 
