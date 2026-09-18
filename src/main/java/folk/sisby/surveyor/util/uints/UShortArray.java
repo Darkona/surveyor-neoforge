@@ -36,7 +36,7 @@ public record UShortArray(short[] value) implements ArrayUInts {
 			packed[i / 2] |= value[i] << Short.SIZE;
 		}
 		for (int i = 1; i < value.length; i += 2) {
-			packed[i / 2] |= value[i];
+			packed[i / 2] |= value[i] & SHORT_MASK; // no sign extension over the even half
 		}
 		return packed;
 	}

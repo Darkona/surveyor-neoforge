@@ -185,7 +185,13 @@ public class RegionSummary {
 	}
 
 	public boolean isUnloaded(Level world) {
-		return regionPos.toChunks().stream().noneMatch(c -> world.hasChunk(c.x, c.z));
+		int chunkX = regionPos.chunkX(), chunkZ = regionPos.chunkZ();
+		for (int x = 0; x < RegionPos.CHUNK_SIZE; x++) {
+			for (int z = 0; z < RegionPos.CHUNK_SIZE; z++) {
+				if (world.hasChunk(chunkX + x, chunkZ + z)) return false;
+			}
+		}
+		return true;
 	}
 
 	// Fix: never skip a save, and only unload once the write finished with nothing changed since.

@@ -133,7 +133,7 @@ public record RegionPos(int x, int z) {
 	}
 
 	public Set<ChunkPos> toChunks() {
-		return IntStream.range(0, 256).mapToObj(this::toChunk).collect(Collectors.toSet());
+		return IntStream.range(0, CHUNK_AREA).mapToObj(this::toChunk).collect(Collectors.toSet());
 	}
 
 	public void forXZ(BiConsumer<Integer, Integer> action) {

@@ -88,4 +88,14 @@ class SurveyorSourceGuardTest {
 		String client = read("client/ClientSummary.java");
 		assertTrue(client.contains("entitySummaries.get(player)"), "players() must reuse the entity summary of a player");
 	}
+
+	@Test
+	@DisplayName("The region unload check scans the whole region and allocates nothing")
+	void unloadCheckCoversRegion() throws IOException {
+		String src = read("terrain/RegionSummary.java");
+		String check = src.substring(src.indexOf("public boolean isUnloaded(Level world) {"));
+		check = check.substring(0, check.indexOf("\n\t}"));
+		assertFalse(check.contains("toChunks(") || check.contains("stream()"), "runs on every chunk unload: no per-call sets or streams");
+		assertTrue(check.contains("RegionPos.CHUNK_SIZE"), "must cover all CHUNK_SIZE × CHUNK_SIZE chunks of the region");
+	}
 }
