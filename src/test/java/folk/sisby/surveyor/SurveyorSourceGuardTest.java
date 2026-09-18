@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SurveyorSourceGuardTest {
-	private static final Path SRC = Path.of("src/main/java/folk/sisby/surveyor");
+	private static final Path SRC = Path.of(System.getProperty("surveyor.projectDir", "."), "src/main/java/folk/sisby/surveyor");
 
 	private static String read(String file) throws IOException {
 		return Files.readString(SRC.resolve(file));

@@ -51,6 +51,12 @@ neoForge {
 			sourceSet(sourceSets.main)
 		}
 	}
+
+	// Tests run inside FML, so Minecraft is bootstrapped and registries exist.
+	unitTest {
+		enable()
+		testedMod = mods."${mod_id}"
+	}
 }
 
 dependencies {
@@ -58,14 +64,10 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
-tasks.named('compileTestJava', JavaCompile) {
-	classpath += sourceSets.main.compileClasspath
-}
-
 tasks.named('test', Test) {
 	useJUnitPlatform()
-	classpath += sourceSets.main.compileClasspath
-	workingDir = project.projectDir
+	// FML runs the tests from its own run folder: source guards find the sources through this
+	systemProperty 'surveyor.projectDir', project.projectDir.absolutePath
 }
 
 var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
