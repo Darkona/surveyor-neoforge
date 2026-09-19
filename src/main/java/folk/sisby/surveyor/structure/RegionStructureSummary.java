@@ -105,7 +105,8 @@ public class RegionStructureSummary {
 	}
 
 	public void put(ServerLevel world, StructureStart start) {
-		ResourceKey<Structure> key = world.registryAccess().registryOrThrow(Registries.STRUCTURE).getResourceKey(start.getStructure()).orElseThrow();
+		ResourceKey<Structure> key = world.registryAccess().registryOrThrow(Registries.STRUCTURE).getResourceKey(start.getStructure()).orElse(null);
+		if (key == null) return; // contains() already logged it
 		StructureStartSummary summary = summarisePieces(StructurePieceSerializationContext.fromLevel(world), start);
 		put(key, start.getChunkPos(), summary);
 	}

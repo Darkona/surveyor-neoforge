@@ -161,7 +161,11 @@ public class WorldStructures {
 	public void put(ServerLevel world, StructureStart start) {
 		if (Surveyor.CONFIG.structures == SystemMode.FROZEN) return;
 		RegionPos regionPos = RegionPos.of(start.getChunkPos());
-		ResourceKey<Structure> key = world.registryAccess().registryOrThrow(Registries.STRUCTURE).getResourceKey(start.getStructure()).orElseThrow();
+		ResourceKey<Structure> key = world.registryAccess().registryOrThrow(Registries.STRUCTURE).getResourceKey(start.getStructure()).orElse(null);
+		if (key == null) {
+			Surveyor.LOGGER.error("Encountered an unregistered structure! {} | {}", start, start.getStructure());
+			return;
+		}
 		Optional<ResourceKey<StructureType<?>>> type = world.registryAccess().registryOrThrow(Registries.STRUCTURE_TYPE).getResourceKey(start.getStructure().type());
 		if (!start.isValid()) {
 			Surveyor.LOGGER.error("Cowardly refusing to save structure {} as it has no pieces! Report this to the structure mod author!", key.location());

@@ -98,4 +98,22 @@ class SurveyorSourceGuardTest {
 		assertFalse(check.contains("toChunks(") || check.contains("stream()"), "runs on every chunk unload: no per-call sets or streams");
 		assertTrue(check.contains("RegionPos.CHUNK_SIZE"), "must cover all CHUNK_SIZE × CHUNK_SIZE chunks of the region");
 	}
+
+	@Test
+	@DisplayName("Client summaries tolerate connections without a summary (ReplayMod)")
+	void summariesSkipNulls() throws IOException {
+		String src = read("client/SurveyorClient.java");
+		String method = src.substring(src.indexOf("public static Map<ResourceKey<Level>, WorldSummary> getSummaries("));
+		method = method.substring(0, method.indexOf("\n\t}"));
+		assertFalse(method.contains("Collectors.toMap"), "toMap throws on the null summary of a replay connection");
+		assertTrue(method.contains("summary != null"));
+	}
+
+	@Test
+	@DisplayName("An unregistered structure is skipped, never thrown on")
+	void unregisteredStructuresSkipped() throws IOException {
+		for (String file : new String[]{"structure/WorldStructures.java", "structure/RegionStructureSummary.java"}) {
+			assertFalse(read(file).contains("getResourceKey(start.getStructure()).orElseThrow()"), file + " throws on a structure missing from the registry");
+		}
+	}
 }

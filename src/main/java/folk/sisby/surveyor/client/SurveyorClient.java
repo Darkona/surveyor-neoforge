@@ -162,7 +162,13 @@ public class SurveyorClient {
 	}
 
 	public static Map<ResourceKey<Level>, WorldSummary> getSummaries(ClientPacketListener handler) {
-		return handler.levels().stream().collect(Collectors.toMap(k -> k, k -> getSummary(k, handler)));
+		// Fix: toMap rejects the null summary of a connection without a ClientSummary (e.g. a ReplayMod playback).
+		Map<ResourceKey<Level>, WorldSummary> summaries = new HashMap<>();
+		for (ResourceKey<Level> dimension : handler.levels()) {
+			WorldSummary summary = getSummary(dimension, handler);
+			if (summary != null) summaries.put(dimension, summary);
+		}
+		return summaries;
 	}
 
 	public static WorldSummary getSummary(ResourceKey<Level> dimension, ClientPacketListener handler) {
