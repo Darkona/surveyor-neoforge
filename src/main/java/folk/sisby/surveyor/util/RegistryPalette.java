@@ -7,16 +7,23 @@ import it.unimi.dsi.fastutil.ints.IntIterators;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.DefaultedRegistry;
 import net.minecraft.core.IdMap;
 import net.minecraft.core.Registry;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.world.level.biome.Biomes;
 
 public class RegistryPalette<T> implements IntIterable {
+	private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
 	private final Registry<T> registry;
-	private final int[] raw;
-	private final int[] inverse;
+	private final int fallbackId;
+	private int[] raw;
+	private int[] inverse;
 	private final ValueView valueView;
 	private int size;
 
@@ -26,13 +33,32 @@ public class RegistryPalette<T> implements IntIterable {
 		this.inverse = ArrayUtil.ofSingle(-1, registry.size());
 		this.size = 0;
 		this.valueView = new ValueView();
+		this.fallbackId = fallbackId(registry);
 	}
 
+	// The void biome, like a region whose saved biome no longer exists; else the registry's default entry.
+	private static <T> int fallbackId(Registry<T> registry) {
+		if (registry.key().equals(Registries.BIOME)) {
+			T voidBiome = registry.get(Biomes.THE_VOID.location());
+			int voidId = voidBiome == null ? -1 : registry.getId(voidBiome);
+			if (voidId >= 0) return voidId;
+		}
+		return registry instanceof DefaultedRegistry<T> defaulted ? Math.max(0, defaulted.getId(defaulted.get(defaulted.getDefaultKey()))) : 0;
+	}
+
+	// Fix: ids can be -1 (a value that isn't registered, e.g. a mod's biome held directly) or at least registry.size()
+	// (ids with gaps); both used to crash the chunk scan every time the chunk loaded.
 	public int find(int value) {
-		return inverse[value];
+		return value >= 0 && value < inverse.length ? inverse[value] : -1;
 	}
 
 	private int add(int value) {
+		if (value >= inverse.length) {
+			int length = inverse.length;
+			inverse = Arrays.copyOf(inverse, Math.max(value + 1, length * 2));
+			Arrays.fill(inverse, length, inverse.length, -1);
+		}
+		if (size == raw.length) raw = Arrays.copyOf(raw, Math.max(1, size * 2));
 		raw[size] = value;
 		inverse[value] = size;
 		T object = registry.byId(value);
@@ -42,12 +68,17 @@ public class RegistryPalette<T> implements IntIterable {
 	}
 
 	public int findOrAdd(int value) {
+		if (value < 0) value = fallbackId;
 		int index = find(value);
 		return index == -1 ? add(value) : index;
 	}
 
 	public int findOrAdd(T value) {
-		return findOrAdd(registry.getId(value));
+		int id = value == null ? -1 : registry.getId(value);
+		if (id < 0 && WARNED.add(registry.key().location() + "/" + value)) {
+			Surveyor.LOGGER.warn("[Surveyor] {} isn't in the {} registry; mapping it as {}. Report this to the mod that adds it.", value, registry.key().location(), registry.getKey(registry.byId(fallbackId)));
+		}
+		return findOrAdd(id);
 	}
 
 	public int get(int index) {
