@@ -7,6 +7,8 @@ import folk.sisby.surveyor.landmark.component.LandmarkComponentHolder;
 import folk.sisby.surveyor.landmark.component.LandmarkComponentMap;
 import folk.sisby.surveyor.landmark.component.LandmarkComponentType;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -54,5 +56,12 @@ public record Landmark(UUID owner, ResourceLocation id, LandmarkComponentMap com
 
 	public Tag toNbt() {
 		return createCodec(owner, id).encodeStart(NbtOps.INSTANCE, this).resultOrPartial(Surveyor.LOGGER::error).orElseThrow();
+	}
+
+	/**
+	 * Registry-aware {@link #toNbt()}: components such as enchanted item stacks only encode with registries.
+	 */
+	public Tag toNbt(HolderLookup.Provider registries) {
+		return createCodec(owner, id).encodeStart(registries.createSerializationContext(NbtOps.INSTANCE), this).resultOrPartial(Surveyor.LOGGER::error).orElseGet(CompoundTag::new);
 	}
 }

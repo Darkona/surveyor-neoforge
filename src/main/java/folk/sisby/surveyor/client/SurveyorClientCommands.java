@@ -90,7 +90,7 @@ public class SurveyorClientCommands {
 			return 0;
 		}
 		Landmark landmark = landmarks.get(global ? WorldLandmarks.GLOBAL : SurveyorClient.getClientUuid(), id);
-		feedback.accept(prefix().append(Component.literal(landmark.owner().equals(WorldLandmarks.GLOBAL) ? "Landmark " : "Waypoint ").withStyle(ChatFormatting.GRAY)).append(Component.literal(id.toString())).append(Component.literal(": ")).append(Component.literal(landmark.toNbt().toString()).withStyle(ChatFormatting.AQUA)));
+		feedback.accept(prefix().append(Component.literal(landmark.owner().equals(WorldLandmarks.GLOBAL) ? "Landmark " : "Waypoint ").withStyle(ChatFormatting.GRAY)).append(Component.literal(id.toString())).append(Component.literal(": ")).append(Component.literal(landmark.toNbt(summary.manager()).toString()).withStyle(ChatFormatting.AQUA)));
 		return 1;
 	}
 

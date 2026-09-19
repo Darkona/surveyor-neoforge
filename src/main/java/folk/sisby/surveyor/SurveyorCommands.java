@@ -321,7 +321,7 @@ public class SurveyorCommands {
 			)
 		);
 		if (raw) {
-			feedback.accept(indent().append(Component.literal(landmark.toNbt().toString())));
+			feedback.accept(indent().append(Component.literal(landmark.toNbt(world.registryAccess()).toString())));
 		} else {
 			landmark.toText().forEach(t -> feedback.accept(indent().append(t)));
 		}

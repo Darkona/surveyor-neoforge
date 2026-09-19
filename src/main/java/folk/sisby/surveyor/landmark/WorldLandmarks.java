@@ -9,6 +9,7 @@ import com.google.common.collect.Table;
 import com.google.common.collect.Tables;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DynamicOps;
 import folk.sisby.surveyor.Surveyor;
 import folk.sisby.surveyor.SurveyorEvents;
 import folk.sisby.surveyor.SurveyorExploration;
@@ -27,6 +28,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtAccounter;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.nbt.ReportedNbtException;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.ComponentSerialization;
@@ -100,9 +103,45 @@ public class WorldLandmarks {
 	}
 
 	public CompoundTag writeNbt(CompoundTag nbt) {
-		nbt.put(KEY_LANDMARKS, CODEC.encodeStart(NbtOps.INSTANCE, landmarks).resultOrPartial(Surveyor.LOGGER::error).orElseThrow());
-		if (removed != null) nbt.put(KEY_REMOVED, REMOVED_CODEC.encodeStart(NbtOps.INSTANCE, removed).resultOrPartial(Surveyor.LOGGER::error).orElseThrow());
+		RegistryOps<Tag> ops = RegistryOps.create(NbtOps.INSTANCE, summary.manager());
+		synchronized (landmarks) {
+			nbt.put(KEY_LANDMARKS, encode(landmarks, ops));
+		}
+		if (removed != null) {
+			synchronized (removed) {
+				REMOVED_CODEC.encodeStart(ops, removed).resultOrPartial(Surveyor.LOGGER::error).ifPresent(tag -> nbt.put(KEY_REMOVED, tag));
+			}
+		}
 		return nbt;
+	}
+
+	/**
+	 * Encodes like {@link #CODEC}, one landmark at a time: a landmark that can't be encoded is logged and left out instead
+	 * of failing the whole save or packet. Needs registry ops for registry-bound components (enchanted item stacks).
+	 */
+	public static CompoundTag encode(Table<UUID, ResourceLocation, Landmark> landmarks, DynamicOps<Tag> ops) {
+		CompoundTag owners = new CompoundTag();
+		for (Table.Cell<UUID, ResourceLocation, Landmark> cell : landmarks.cellSet()) {
+			UUID owner = cell.getRowKey();
+			ResourceLocation id = cell.getColumnKey();
+			Landmark.createCodec(owner, id).encodeStart(ops, cell.getValue())
+				.resultOrPartial(e -> Surveyor.LOGGER.error("[Surveyor] Leaving out landmark {} of {}, it can't be encoded: {}", id, owner, e))
+				.ifPresent(tag -> {
+					String ownerKey = owner.toString();
+					if (!owners.contains(ownerKey, Tag.TAG_COMPOUND)) owners.put(ownerKey, new CompoundTag());
+					owners.getCompound(ownerKey).put(id.toString(), tag);
+				});
+		}
+		return owners;
+	}
+
+	/**
+	 * Decodes like {@link #CODEC}, keeping every landmark that decodes: one bad entry must not drop the rest.
+	 */
+	public static Table<UUID, ResourceLocation, Landmark> decode(Tag tag, DynamicOps<Tag> ops) {
+		return CODEC.parse(ops, tag)
+			.resultOrPartial(e -> Surveyor.LOGGER.error("[Surveyor] Some landmarks couldn't be decoded and were skipped: {}", e))
+			.orElseGet(HashBasedTable::create);
 	}
 
 	public static WorldLandmarks fromNbt(WorldSummary summary, CompoundTag nbt, File landmarksFile) {
@@ -143,10 +182,11 @@ public class WorldLandmarks {
 				Surveyor.LOGGER.error("[Surveyor] Encountered an error during v0 landmark migration, skipping...", e);
 			}
 		} else {
-			if (!landmarks.isEmpty()) outMap.putAll(CODEC.decode(NbtOps.INSTANCE, landmarks).resultOrPartial(Surveyor.LOGGER::error).orElseThrow().getFirst());
+			RegistryOps<Tag> ops = RegistryOps.create(NbtOps.INSTANCE, summary.manager());
+			if (!landmarks.isEmpty()) outMap.putAll(decode(landmarks, ops));
 			if (!summary.isClient()) {
 				CompoundTag removed = nbt.getCompound(KEY_REMOVED);
-				if (!removed.isEmpty()) removedMap = REMOVED_CODEC.decode(NbtOps.INSTANCE, removed).resultOrPartial(Surveyor.LOGGER::error).orElseThrow().getFirst();
+				if (!removed.isEmpty()) removedMap = REMOVED_CODEC.parse(ops, removed).resultOrPartial(Surveyor.LOGGER::error).orElseGet(HashMultimap::create);
 			}
 		}
 		return new WorldLandmarks(summary, outMap, removedMap, dirty);

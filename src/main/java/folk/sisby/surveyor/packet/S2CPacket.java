@@ -17,7 +17,8 @@ import java.util.function.Predicate;
 
 public interface S2CPacket extends SurveyorPacket {
 	default void send(Collection<ServerPlayer> players) {
-		List<SurveyorPacket> split = this.toPayloads();
+		if (players.isEmpty()) return;
+		List<SurveyorPacket> split = this.toPayloads(players.iterator().next().registryAccess());
 		if (split.isEmpty()) return;
 		for (ServerPlayer player : players) {
 			if (!player.connection.hasChannel(type()) || player.getServer().isSingleplayerOwner(player.getGameProfile())) continue;

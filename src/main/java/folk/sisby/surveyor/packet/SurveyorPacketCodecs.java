@@ -21,10 +21,14 @@ import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.UUIDUtil;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.nbt.NbtAccounter;
+import net.minecraft.nbt.NbtOps;
+import net.minecraft.nbt.Tag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.resources.RegistryOps;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
@@ -89,5 +93,20 @@ public interface SurveyorPacketCodecs {
 		ByteBufCodecs.fromCodec(TagKey.hashedCodec(Registries.STRUCTURE)).apply(ByteBufCodecs.list())
 	).map(MapUtil::asMultiMap, MapUtil::asListMap);
 
-	StreamCodec<ByteBuf, Table<UUID, ResourceLocation, Landmark>> LANDMARK_SUMMARIES = ByteBufCodecs.fromCodec(WorldLandmarks.CODEC);
+	// Fix: same wire format as ByteBufCodecs.fromCodec(WorldLandmarks.CODEC), but with registry ops (enchanted item stacks)
+	// and tolerant: one landmark that can't be encoded or decoded is left out instead of failing the packet, which
+	// disconnected the sender and locked them out on every rejoin.
+	StreamCodec<RegistryFriendlyByteBuf, Table<UUID, ResourceLocation, Landmark>> LANDMARK_SUMMARIES = new StreamCodec<>() {
+		private static final StreamCodec<ByteBuf, Tag> TAG = ByteBufCodecs.tagCodec(() -> NbtAccounter.create(2097152L));
+
+		@Override
+		public Table<UUID, ResourceLocation, Landmark> decode(RegistryFriendlyByteBuf buf) {
+			return WorldLandmarks.decode(TAG.decode(buf), RegistryOps.create(NbtOps.INSTANCE, buf.registryAccess()));
+		}
+
+		@Override
+		public void encode(RegistryFriendlyByteBuf buf, Table<UUID, ResourceLocation, Landmark> landmarks) {
+			TAG.encode(buf, WorldLandmarks.encode(landmarks, RegistryOps.create(NbtOps.INSTANCE, buf.registryAccess())));
+		}
+	};
 }

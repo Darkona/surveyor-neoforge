@@ -37,7 +37,7 @@ public class SurveyorClientNetworking {
 		SurveyorNetworking.C2S_SENDER = p -> {
 			ClientPacketListener connection = Minecraft.getInstance().getConnection();
 			if (connection == null || !connection.hasChannel(p.type())) return;
-			p.toPayloads().forEach(PacketDistributor::sendToServer);
+			p.toPayloads(connection.registryAccess()).forEach(PacketDistributor::sendToServer);
 		};
 		SurveyorNetworking.S2C_RECEIVER = (packet, context) -> {
 			switch (packet) {
