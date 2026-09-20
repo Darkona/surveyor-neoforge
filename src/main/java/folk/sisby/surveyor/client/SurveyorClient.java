@@ -34,9 +34,12 @@ import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.structure.Structure;
 import net.minecraft.world.level.storage.LevelResource;
 import net.neoforged.api.distmarker.Dist;
+import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.client.event.RegisterClientCommandsEvent;
+import net.neoforged.neoforge.client.gui.ConfigurationScreen;
+import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
@@ -243,7 +246,9 @@ public class SurveyorClient {
 		if (hasLandmarks) new C2SKnownLandmarksPacket(landmarkKeys).send();
 	}
 
-	public SurveyorClient() {
+	public SurveyorClient(ModContainer container) {
+		// Fix: the mod list's Config button was disabled; NeoForge builds the screen from the config spec.
+		container.registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new);
 		SurveyorClientNetworking.init();
 		NeoForge.EVENT_BUS.addListener(RegisterClientCommandsEvent.class, e -> SurveyorClientCommands.registerCommands(e.getDispatcher(), e.getBuildContext()));
 		NeoForge.EVENT_BUS.addListener(ChunkEvent.Load.class, e -> {

@@ -126,4 +126,10 @@ class SurveyorSourceGuardTest {
 		hook = hook.substring(0, hook.indexOf("\n\t}"));
 		assertTrue(hook.indexOf("getChunkNow(") >= 0 && hook.indexOf("getChunkNow(") < hook.indexOf("add(world, pos)"), "check the chunk is loaded before building the landmark");
 	}
+
+	@Test
+	@DisplayName("The mod list's Config button opens NeoForge's config screen")
+	void configScreenRegistered() throws IOException {
+		assertTrue(read("client/SurveyorClient.java").contains("registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new)"));
+	}
 }
