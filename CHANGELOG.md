@@ -23,6 +23,9 @@ until the date listed.
   tooltip. (surveyor#150, surveyor#144)
 - A landmark that can't be read or written is left out and logged, instead of failing the whole save or packet. One
   bad marker used to disconnect a player on every rejoin. The network format is unchanged. (surveyor#149)
+- Lodestones and other tracked POIs placed by world generation no longer make the server finish generating their
+  chunk on the spot (stalls, worse with C2ME). Their landmark is added once the chunk has fully loaded. New option
+  `builtins.poiLandmarksFromWorldgen` to skip them entirely. (surveyor#145, surveyor#147, surveyor#136)
 
 ### Terrain
 - Biomes that a mod doesn't register (End's Phantasm) and ids past the registry size no longer crash the chunk scan
