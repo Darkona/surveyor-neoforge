@@ -36,6 +36,7 @@ public class SurveyorConfig {
 	public static final class Builtins {
 		public List<String> allowedBlockEntities = List.of("minecraft:banner");
 		public List<String> poiLandmarks = List.of("minecraft:lodestone");
+		public boolean poiLandmarksFromWorldgen = true;
 		public boolean netherPortalLandmarks = true;
 		public boolean playerDeathWaypoints = true;
 		public boolean recordFromMapItems = true;
@@ -76,6 +77,7 @@ public class SurveyorConfig {
 	private static final ModConfigSpec.IntValue NET_POSITION_TICKS;
 	private static final ModConfigSpec.ConfigValue<List<? extends String>> ALLOWED_BLOCK_ENTITIES;
 	private static final ModConfigSpec.ConfigValue<List<? extends String>> POI_LANDMARKS;
+	private static final ModConfigSpec.BooleanValue POI_LANDMARKS_FROM_WORLDGEN;
 	private static final ModConfigSpec.BooleanValue NETHER_PORTAL_LANDMARKS;
 	private static final ModConfigSpec.BooleanValue PLAYER_DEATH_WAYPOINTS;
 	private static final ModConfigSpec.BooleanValue RECORD_FROM_MAP_ITEMS;
@@ -118,6 +120,7 @@ public class SurveyorConfig {
 		b.push("builtins");
 		ALLOWED_BLOCK_ENTITIES = b.comment("Which block entities to preserve data for when creating block landmarks.").defineListAllowEmpty("allowedBlockEntities", d.builtins.allowedBlockEntities, () -> "", o -> o instanceof String);
 		POI_LANDMARKS = b.comment("Which points of interest to automatically add block landmarks for.").defineListAllowEmpty("poiLandmarks", d.builtins.poiLandmarks, () -> "", o -> o instanceof String);
+		POI_LANDMARKS_FROM_WORLDGEN = b.comment("Whether points of interest placed by world generation (e.g. lodestones in structures) also get landmarks.", "They are added once their chunk has fully loaded.").define("poiLandmarksFromWorldgen", d.builtins.poiLandmarksFromWorldgen);
 		NETHER_PORTAL_LANDMARKS = b.comment("Whether to automatically add specialised nether portal POI landmarks.", "Creates one landmark for each nether portal, instead of one per portal block.").define("netherPortalLandmarks", d.builtins.netherPortalLandmarks);
 		PLAYER_DEATH_WAYPOINTS = b.comment("Whether to automatically add player death waypoints").define("playerDeathWaypoints", d.builtins.playerDeathWaypoints);
 		RECORD_FROM_MAP_ITEMS = b.comment("Allows recording terrain and waypoints from map items by sneak+using them at a cartography table.", "Viable blocks configured via #surveyor:record_from_map").define("recordFromMapItems", d.builtins.recordFromMapItems);
@@ -146,6 +149,7 @@ public class SurveyorConfig {
 		networking.positionTicks = NET_POSITION_TICKS.get();
 		builtins.allowedBlockEntities = List.copyOf(ALLOWED_BLOCK_ENTITIES.get());
 		builtins.poiLandmarks = List.copyOf(POI_LANDMARKS.get());
+		builtins.poiLandmarksFromWorldgen = POI_LANDMARKS_FROM_WORLDGEN.get();
 		builtins.netherPortalLandmarks = NETHER_PORTAL_LANDMARKS.get();
 		builtins.playerDeathWaypoints = PLAYER_DEATH_WAYPOINTS.get();
 		builtins.recordFromMapItems = RECORD_FROM_MAP_ITEMS.get();

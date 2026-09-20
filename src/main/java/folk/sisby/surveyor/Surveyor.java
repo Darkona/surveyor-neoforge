@@ -3,6 +3,7 @@ package folk.sisby.surveyor;
 import folk.sisby.surveyor.config.NetworkMode;
 import folk.sisby.surveyor.config.SurveyorConfig;
 import folk.sisby.surveyor.landmark.WorldLandmarks;
+import folk.sisby.surveyor.landmark.PoiLandmarks;
 import folk.sisby.surveyor.landmark.component.LandmarkComponentTypes;
 import folk.sisby.surveyor.structure.StructureStartSummary;
 import folk.sisby.surveyor.structure.WorldStructures;
@@ -38,6 +39,7 @@ import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import net.neoforged.neoforge.event.tick.LevelTickEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.apache.commons.lang3.text.WordUtils;
@@ -132,10 +134,14 @@ public class Surveyor {
 			if (e.getLevel() instanceof ServerLevel world && e.getChunk() instanceof LevelChunk chunk) {
 				WorldTerrain.onChunkLoad(world, chunk);
 				WorldStructures.onChunkLoad(world, chunk);
+				PoiLandmarks.onChunkLoad(world, chunk.getPos());
 			}
 		});
 		NeoForge.EVENT_BUS.addListener(ChunkEvent.Unload.class, e -> {
 			if (e.getLevel() instanceof ServerLevel world && e.getChunk() instanceof LevelChunk chunk) WorldTerrain.onChunkUnload(world, chunk);
+		});
+		NeoForge.EVENT_BUS.addListener(LevelEvent.Unload.class, e -> {
+			if (e.getLevel() instanceof ServerLevel world) PoiLandmarks.onLevelUnload(world);
 		});
 		NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, e -> ServerSummary.onTick(e.getServer()));
 		NeoForge.EVENT_BUS.addListener(LevelTickEvent.Post.class, e -> {
@@ -150,6 +156,7 @@ public class Surveyor {
 
 	private static void onWorldTick(ServerLevel world) {
 		WorldTerrain.onTick(world);
+		PoiLandmarks.onTick(world);
 		if ((world.getGameTime() & 7) != 0) return;
 		for (ServerPlayer player : world.players()) {
 			checkStructureExploration(world, player, player.blockPosition());

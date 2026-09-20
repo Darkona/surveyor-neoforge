@@ -116,4 +116,14 @@ class SurveyorSourceGuardTest {
 			assertFalse(read(file).contains("getResourceKey(start.getStructure()).orElseThrow()"), file + " throws on a structure missing from the registry");
 		}
 	}
+
+	@Test
+	@DisplayName("A POI in a chunk that is still generating waits for the chunk instead of forcing it to load")
+	void worldgenPoisDeferred() throws IOException {
+		assertFalse(read("mixin/MixinDebugPackets.java").contains("forBlock("), "the POI hook must not read the world directly");
+		String src = read("landmark/PoiLandmarks.java");
+		String hook = src.substring(src.indexOf("public static void onPoiAdded("));
+		hook = hook.substring(0, hook.indexOf("\n\t}"));
+		assertTrue(hook.indexOf("getChunkNow(") >= 0 && hook.indexOf("getChunkNow(") < hook.indexOf("add(world, pos)"), "check the chunk is loaded before building the landmark");
+	}
 }
