@@ -11,6 +11,9 @@ until the date listed.
   the original's Connector build. Same features, mod id, save format and network format as the original.
 - The configuration file uses NeoForge's format. The `recordIcons` table became the `disabledRecordIcons` list.
 
+### Configuration
+- The mod list's Config button opens a config screen with every option; it used to be disabled.
+
 ### Saving
 - Saving can no longer lose map data: a server stopping right after an autosave, a crash while writing a file, or two
   overlapping saves of one file could drop or corrupt a region.
