@@ -21,5 +21,6 @@
 	"surveyor.configuration.playerDeathWaypoints": "Death waypoints",
 	"surveyor.configuration.recordFromMapItems": "Record from map items",
 	"surveyor.configuration.disabledRecordIcons": "Map icons not recorded",
-	"surveyor.configuration.recordToMapItems": "Record to map items"
+	"surveyor.configuration.recordToMapItems": "Record to map items",
+	"surveyor.configuration.hideHiddenPlayers": "Hide spectators and invisible players"
 }

@@ -159,11 +159,15 @@ public final class ServerSummary {
 			}
 			if (online < 2 || !changed) continue;
 			Map<UUID, PlayerSummary> onlinePlayers = new HashMap<>();
+			Set<UUID> recipients = new HashSet<>();
 			for (UUID uuid : group) {
 				ServerPlayer player = server.getPlayerList().getPlayer(uuid);
-				if (player != null) onlinePlayers.put(uuid, PlayerSummary.of(player));
+				if (player == null) continue;
+				recipients.add(uuid);
+				if (!isHidden(player)) onlinePlayers.put(uuid, PlayerSummary.of(player));
 			}
-			new S2CGroupUpdatedPacket(onlinePlayers).send(null, server, p -> onlinePlayers.containsKey(Surveyor.getUuid(p)), Surveyor.CONFIG.networking.positions, true);
+			if (onlinePlayers.isEmpty()) continue;
+			new S2CGroupUpdatedPacket(onlinePlayers).send(null, server, p -> recipients.contains(Surveyor.getUuid(p)), Surveyor.CONFIG.networking.positions, true);
 		}
 	}
 
@@ -228,9 +232,18 @@ public final class ServerSummary {
 		offlineSummaries.put(Surveyor.getUuid(player), new PlayerSummary.OfflinePlayerSummary(player));
 	}
 
+	/**
+	 * Players in spectator mode or with invisibility; their positions aren't sent to others (sisby-folk/surveyor#106).
+	 */
+	public static boolean isHidden(ServerPlayer player) {
+		return Surveyor.CONFIG.networking.hideHiddenPlayers && (player.isSpectator() || player.isInvisible());
+	}
+
 	public void updatePlayer(UUID uuid, CompoundTag nbt, boolean online) {
 		PlayerSummary newSummary = new PlayerSummary.OfflinePlayerSummary(uuid, nbt, online);
 		offlineSummaries.put(uuid, newSummary);
+		ServerPlayer player = server.getPlayerList().getPlayer(uuid);
+		if (online && player != null && isHidden(player)) return;
 		S2CGroupUpdatedPacket.of(uuid, newSummary).send(null, server, getSharingPlayers(uuid, Surveyor.CONFIG.networking.positions, false)::contains, Surveyor.CONFIG.networking.positions, false);
 	}
 

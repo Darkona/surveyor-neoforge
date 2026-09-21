@@ -31,6 +31,7 @@ public class SurveyorConfig {
 		public NetworkMode positions = NetworkMode.SERVER;
 		public int terrainTicks = 20;
 		public int positionTicks = 1;
+		public boolean hideHiddenPlayers = true;
 	}
 
 	public static final class Builtins {
@@ -75,6 +76,7 @@ public class SurveyorConfig {
 	private static final ModConfigSpec.EnumValue<NetworkMode> NET_POSITIONS;
 	private static final ModConfigSpec.IntValue NET_TERRAIN_TICKS;
 	private static final ModConfigSpec.IntValue NET_POSITION_TICKS;
+	private static final ModConfigSpec.BooleanValue NET_HIDE_HIDDEN_PLAYERS;
 	private static final ModConfigSpec.ConfigValue<List<? extends String>> ALLOWED_BLOCK_ENTITIES;
 	private static final ModConfigSpec.ConfigValue<List<? extends String>> POI_LANDMARKS;
 	private static final ModConfigSpec.BooleanValue POI_LANDMARKS_FROM_WORLDGEN;
@@ -115,6 +117,7 @@ public class SurveyorConfig {
 		).defineEnum("positions", d.networking.positions);
 		NET_TERRAIN_TICKS = b.comment("[Server] Ticks per terrain region load for batch update - lower is more frequent").defineInRange("terrainTicks", d.networking.terrainTicks, 1, 200);
 		NET_POSITION_TICKS = b.comment("[Server] Ticks per position update - lower is more frequent").defineInRange("positionTicks", d.networking.positionTicks, 1, 200);
+		NET_HIDE_HIDDEN_PLAYERS = b.comment("[Server] Don't send the positions of players in spectator mode or with invisibility; others keep seeing their last visible position.").define("hideHiddenPlayers", d.networking.hideHiddenPlayers);
 		b.pop();
 
 		b.push("builtins");
@@ -147,6 +150,7 @@ public class SurveyorConfig {
 		networking.positions = NET_POSITIONS.get();
 		networking.terrainTicks = NET_TERRAIN_TICKS.get();
 		networking.positionTicks = NET_POSITION_TICKS.get();
+		networking.hideHiddenPlayers = NET_HIDE_HIDDEN_PLAYERS.get();
 		builtins.allowedBlockEntities = List.copyOf(ALLOWED_BLOCK_ENTITIES.get());
 		builtins.poiLandmarks = List.copyOf(POI_LANDMARKS.get());
 		builtins.poiLandmarksFromWorldgen = POI_LANDMARKS_FROM_WORLDGEN.get();

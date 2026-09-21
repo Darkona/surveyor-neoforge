@@ -132,4 +132,12 @@ class SurveyorSourceGuardTest {
 	void configScreenRegistered() throws IOException {
 		assertTrue(read("client/SurveyorClient.java").contains("registerExtensionPoint(IConfigScreenFactory.class, ConfigurationScreen::new)"));
 	}
+
+	@Test
+	@DisplayName("Positions of spectators and invisible players aren't sent")
+	void hiddenPlayersNotSent() throws IOException {
+		String src = read("ServerSummary.java");
+		assertTrue(src.contains("if (!isHidden(player)) onlinePlayers.put(uuid, PlayerSummary.of(player));"), "periodic position updates skip hidden players");
+		assertTrue(src.contains("if (online && player != null && isHidden(player)) return;"), "save-time updates skip hidden players");
+	}
 }
