@@ -1,6 +1,6 @@
 # Configuration
 
-Surveyor's options live in `config/surveyor.toml`. On a server, the server's file decides what is shared. Most changes need a restart.
+Surveyor's options live in `config/surveyor.toml`; you can also edit them in game from the mod list (Mods → Surveyor → Config). On a server, the server's file decides what is shared. Most changes need a restart.
 
 ## Systems
 
@@ -33,6 +33,7 @@ Each takes `DISABLED` (off), `FROZEN` (existing data is loaded but never changes
 | `positions` | `SERVER` | Who sees where players are. |
 | `terrainTicks` | `20` | Ticks between terrain batches sent to a joining player (1–200). Lower is faster, busier. |
 | `positionTicks` | `1` | Ticks between checks for player movement (1–200). Positions are only sent when someone moved. |
+| `hideHiddenPlayers` | `true` | Don't send the positions of players in spectator mode or with invisibility; others see their last visible position. |
 
 Sharing values: `SERVER`, `GROUP`, `SOLO`, `NONE` — see [Playing Together](Playing-Together).
 
@@ -41,6 +42,7 @@ Sharing values: `SERVER`, `GROUP`, `SOLO`, `NONE` — see [Playing Together](Pla
 | Option | Default | What it does |
 |---|---|---|
 | `poiLandmarks` | `["minecraft:lodestone"]` | Points of interest that automatically become landmarks. |
+| `poiLandmarksFromWorldgen` | `true` | Also add landmarks for those placed by world generation (e.g. lodestones in structures), once their chunk has loaded. `false` skips them. |
 | `netherPortalLandmarks` | `true` | One landmark per nether portal. |
 | `playerDeathWaypoints` | `true` | A waypoint where you died. |
 | `allowedBlockEntities` | `["minecraft:banner"]` | Blocks whose data (e.g. a banner's pattern) is kept on block waypoints. |

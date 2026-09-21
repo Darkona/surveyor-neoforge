@@ -34,6 +34,16 @@ The `[networking]` section of the configuration decides, for each kind of data, 
 
 This is set separately for `terrain`, `structures`, `landmarks` (server-wide landmarks), `waypoints` (player-made) and `positions` (where players are). See [Configuration](Configuration).
 
+## Who sees whom on the map
+
+Where players appear is decided by `positions`:
+
+- `SERVER` (default): everyone sees every player, anywhere in the world.
+- `GROUP`: you only see the players in your group. Combine it with `globalSharing = false`, so groups are made with `/surveyor share`.
+- `SOLO` or `NONE`: nobody sees other players.
+
+Players in spectator mode or with invisibility are never shown to others while `hideHiddenPlayers = true` (default); their friends keep seeing where they were last visible.
+
 ## Your map follows you
 
 The server keeps each player's exploration. Change computers or reinstall the game, and your map is sent back to you when you join.
