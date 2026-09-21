@@ -50,6 +50,10 @@ until the date listed.
 - Players in spectator mode or with invisibility no longer show up on other players' maps; they keep their last visible
   position. Option `networking.hideHiddenPlayers`. (surveyor#106)
 
+### For map mods
+- New client event `ExplorationReset`, fired when the player's share group changes and the shared exploration is
+  replaced: map mods can drop areas the new group hasn't explored. (antique-atlas#343)
+
 ### Performance
 - Recording a chunk no longer creates objects for every block it scans.
 - Map data is only packed for sending when a player will receive it.
