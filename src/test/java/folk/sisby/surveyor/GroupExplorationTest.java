@@ -26,6 +26,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class GroupExplorationTest {
@@ -110,6 +111,35 @@ class GroupExplorationTest {
 		};
 		double viewBytes = allocatedPerCall(viewPass), copyBytes = allocatedPerCall(copyPass);
 		assertTrue(viewBytes <= copyBytes * 1.05 + 1024, "the view's queries allocate " + viewBytes + " bytes per pass, the merged copy's " + copyBytes);
+	}
+
+	@Test
+	@DisplayName("replacing the shared exploration drops what the new group hasn't explored")
+	void replaceDropsOldExploration() {
+		SurveyorExploration shared = PlayerSummary.OfflinePlayerSummary.OfflinePlayerExploration.empty(UUID.randomUUID());
+		BitSet old = new BitSet(RegionPos.CHUNK_AREA);
+		old.set(5);
+		shared.chunks().put(OVERWORLD, new RegionPos(9, 9), old);
+		shared.chunks().put(NETHER, new RegionPos(0, 0), (BitSet) old.clone());
+		shared.addStructure(OVERWORLD, TEMPLE, new ChunkPos(1, 1));
+		shared.addStructure(NETHER, VILLAGE, new ChunkPos(2, 2));
+
+		HashBasedTable<ResourceKey<Level>, RegionPos, BitSet> chunks = HashBasedTable.create();
+		BitSet kept = new BitSet(RegionPos.CHUNK_AREA);
+		kept.set(7);
+		chunks.put(OVERWORLD, new RegionPos(0, 0), kept);
+		HashBasedTable<ResourceKey<Level>, ResourceKey<Structure>, it.unimi.dsi.fastutil.longs.LongSet> starts = HashBasedTable.create();
+		starts.put(OVERWORLD, VILLAGE, new LongOpenHashSet(new long[]{ChunkPos.asLong(3, 3)}));
+
+		shared.replaceTerrain(chunks, false);
+		shared.replaceStructures(starts);
+
+		assertTrue(shared.exploredChunk(OVERWORLD, new RegionPos(0, 0).toChunk(7)));
+		assertFalse(shared.chunks().contains(OVERWORLD, new RegionPos(9, 9)), "a region the new group hasn't explored stays");
+		assertFalse(shared.chunks().containsRow(NETHER), "a dimension the new group hasn't explored stays");
+		assertTrue(shared.exploredStructure(OVERWORLD, VILLAGE, new ChunkPos(3, 3)));
+		assertFalse(shared.exploredStructure(OVERWORLD, TEMPLE, new ChunkPos(1, 1)), "the old group's structure stays");
+		assertFalse(shared.exploredStructure(NETHER, VILLAGE, new ChunkPos(2, 2)), "the old group's structure stays");
 	}
 
 	private static void growExploration(List<SurveyorExploration> members, int regions) {

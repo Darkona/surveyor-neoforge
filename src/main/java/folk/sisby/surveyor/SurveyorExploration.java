@@ -160,6 +160,8 @@ public interface SurveyorExploration {
 		for (ResourceKey<Level> dimension : chunks.rowKeySet()) { // merge first for client updates
 			chunks.row(dimension).forEach((regionPos, bitSet) -> mergeRegion(dimension, regionPos, bitSet, updateClient));
 		}
+		// Fix: putAll alone kept every region the new data doesn't list, so the old share group's chunks stayed explored.
+		chunks().clear();
 		chunks().putAll(chunks); // then replace to ditch anything else
 	}
 
@@ -198,7 +200,9 @@ public interface SurveyorExploration {
 		for (ResourceKey<Level> dimension : starts.rowKeySet()) { // merge first for client updates
 			starts.row(dimension).forEach((key, startSet) -> mergeStructures(dimension, key, startSet));
 		}
-		starts.putAll(starts); // then replace to ditch anything else
+		// Fix: this put the argument into itself, so the old share group's structures were never dropped.
+		starts().clear();
+		starts().putAll(starts); // then replace to ditch anything else
 	}
 
 	default CompoundTag write(CompoundTag nbt) {
