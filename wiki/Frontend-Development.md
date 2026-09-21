@@ -36,6 +36,8 @@ They can also fire before `ClientPlayerLoad`, so let any of them create your map
 
 Tune into `LandmarksRemoved` as well but without a queue - just remove from your map/queue directly.
 
+This fork adds `ExplorationReset` (`SurveyorClientEvents.Register.explorationReset`): it fires when the client's shared exploration is replaced rather than extended, e.g. when the player's share group changes. Chunks and structures reported before may no longer be explored, so drop what you drew and rebuild it from the world summaries and `SurveyorClient.getExploration()`.
+
 #### Terrain Rendering
 
 First, generate a top layer (with any desired height limits) using `get(ChunkPos).toSingleLayer()`.<br/>

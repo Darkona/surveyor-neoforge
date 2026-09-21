@@ -87,6 +87,8 @@ public class SurveyorClientNetworking {
 		SurveyorClient.getSharedExploration().replaceStructures(packet.starts());
 		SurveyorClient.getSummaries(handler).values().forEach(summary -> SurveyorClient.getSharedExploration().updateClientForLandmarks(summary));
 		SurveyorClient.sendKnownData(handler);
+		// Fix: the group's exploration was replaced; map mods kept drawing chunks the new group hasn't explored.
+		SurveyorClientEvents.Invoke.explorationReset();
 		Surveyor.LOGGER.info("[Surveyor] Received updated share group of {} from the server - {}", packet.players().size(), packet.players().values().stream().map(PlayerSummary::username).collect(Collectors.joining(", ")));
 	}
 

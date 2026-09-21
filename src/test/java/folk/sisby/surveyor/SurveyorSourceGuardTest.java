@@ -140,4 +140,13 @@ class SurveyorSourceGuardTest {
 		assertTrue(src.contains("if (!isHidden(player)) onlinePlayers.put(uuid, PlayerSummary.of(player));"), "periodic position updates skip hidden players");
 		assertTrue(src.contains("if (online && player != null && isHidden(player)) return;"), "save-time updates skip hidden players");
 	}
+
+	@Test
+	@DisplayName("A group change tells map mods their exploration was replaced")
+	void groupChangeResetsExploration() throws IOException {
+		String src = read("client/SurveyorClientNetworking.java");
+		String method = src.substring(src.indexOf("private static void handleGroupChanged("));
+		method = method.substring(0, method.indexOf("\n\t}"));
+		assertTrue(method.indexOf("replaceTerrain(") < method.indexOf("SurveyorClientEvents.Invoke.explorationReset()"), "fire after the exploration is replaced");
+	}
 }

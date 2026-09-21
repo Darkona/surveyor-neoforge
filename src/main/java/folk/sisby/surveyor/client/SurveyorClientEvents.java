@@ -21,6 +21,7 @@ public class SurveyorClientEvents {
 	private static final Map<ResourceLocation, StructuresAdded> structuresAdded = new HashMap<>();
 	private static final Map<ResourceLocation, LandmarksAdded> landmarksAdded = new HashMap<>();
 	private static final Map<ResourceLocation, LandmarksRemoved> landmarksRemoved = new HashMap<>();
+	private static final Map<ResourceLocation, ExplorationReset> explorationReset = new HashMap<>();
 
 	@FunctionalInterface
 	public interface TerrainUpdated {
@@ -40,6 +41,16 @@ public class SurveyorClientEvents {
 	@FunctionalInterface
 	public interface LandmarksRemoved {
 		void onLandmarksRemoved(WorldSummary summary, Multimap<UUID, ResourceLocation> landmarks);
+	}
+
+	/**
+	 * The client's shared exploration was replaced rather than extended (e.g. the player's share group changed): chunks and
+	 * structures reported before may no longer be explored. Map mods should drop what they drew and redraw from
+	 * {@link WorldSummary} data and {@link SurveyorClient#getExploration()}. Addition of this fork.
+	 */
+	@FunctionalInterface
+	public interface ExplorationReset {
+		void onExplorationReset();
 	}
 
 	// Fix: addon callbacks run on the client thread, also when called from the integrated server.
@@ -81,6 +92,11 @@ public class SurveyorClientEvents {
 			runOnClient(() -> landmarksRemoved.forEach((id, handler) -> handler.onLandmarksRemoved(summary, args)));
 		}
 
+		public static void explorationReset() {
+			if (explorationReset.isEmpty()) return;
+			runOnClient(() -> explorationReset.forEach((id, handler) -> handler.onExplorationReset()));
+		}
+
 		private static boolean onClientThread() {
 			return Minecraft.getInstance().isSameThread();
 		}
@@ -109,6 +125,10 @@ public class SurveyorClientEvents {
 
 		public static void landmarksRemoved(ResourceLocation id, LandmarksRemoved handler) {
 			landmarksRemoved.put(id, handler);
+		}
+
+		public static void explorationReset(ResourceLocation id, ExplorationReset handler) {
+			explorationReset.put(id, handler);
 		}
 	}
 }
