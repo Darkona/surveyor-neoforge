@@ -46,6 +46,10 @@ until the date listed.
 - Map mods are always notified on the game's own thread.
 - A connection without Surveyor data, such as a ReplayMod playback, no longer crashes the client. (surveyor#151)
 
+### Player positions
+- Players in spectator mode or with invisibility no longer show up on other players' maps; they keep their last visible
+  position. Option `networking.hideHiddenPlayers`. (surveyor#106)
+
 ### Performance
 - Recording a chunk no longer creates objects for every block it scans.
 - Map data is only packed for sending when a player will receive it.
