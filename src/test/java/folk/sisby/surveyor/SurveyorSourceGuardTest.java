@@ -115,6 +115,7 @@ class SurveyorSourceGuardTest {
 		for (String file : new String[]{"structure/WorldStructures.java", "structure/RegionStructureSummary.java"}) {
 			assertFalse(read(file).contains("getResourceKey(start.getStructure()).orElseThrow()"), file + " throws on a structure missing from the registry");
 		}
+		assertFalse(read("Surveyor.java").contains("getResourceKey(structure).orElseThrow()"), "structure discovery throws on a structure missing from the registry");
 	}
 
 	@Test

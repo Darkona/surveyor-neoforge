@@ -75,7 +75,9 @@ public class Surveyor {
 		Map<Structure, LongSet> structureReferences = world.getChunk(pos.getX() >> 4, pos.getZ() >> 4, ChunkStatus.STRUCTURE_REFERENCES).getAllReferences();
 		if (!structureReferences.isEmpty()) {
 			for (Structure structure : structureReferences.keySet()) {
-				ResourceKey<Structure> structureKey = structureRegistry.getResourceKey(structure).orElseThrow();
+				// Fix: a structure missing from the registry crashed the server tick every 8 ticks near it (surveyor#142).
+				ResourceKey<Structure> structureKey = structureRegistry.getResourceKey(structure).orElse(null);
+				if (structureKey == null) continue;
 				for (LongIterator it = structureReferences.get(structure).iterator(); it.hasNext(); ) {
 					ChunkPos startPos = new ChunkPos(it.nextLong());
 					if (exploration.exploredStructure(world.dimension(), structureKey, startPos)) continue;
