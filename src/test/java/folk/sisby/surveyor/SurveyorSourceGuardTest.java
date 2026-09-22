@@ -150,4 +150,12 @@ class SurveyorSourceGuardTest {
 		method = method.substring(0, method.indexOf("\n\t}"));
 		assertTrue(method.indexOf("replaceTerrain(") < method.indexOf("SurveyorClientEvents.Invoke.explorationReset()"), "fire after the exploration is replaced");
 	}
+
+	@Test
+	@DisplayName("Known-data packets that leave out a dimension don't kick the player")
+	void knownDataToleratesMissingDimensions() throws IOException {
+		String src = read("SurveyorNetworking.java");
+		assertFalse(src.contains("packet.starts().get(world.dimension()).forEach("), "a dimension missing from the client's structures throws");
+		assertFalse(src.contains("packet.landmarks().get(summary.dimension())"), "a dimension missing from the client's landmarks throws");
+	}
 }

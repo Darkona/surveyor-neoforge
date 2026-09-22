@@ -107,7 +107,9 @@ public class SurveyorNetworking {
 			WorldStructures structures = WorldStructures.of(world);
 			if (structures == null) continue;
 			Multimap<ResourceKey<Structure>, ChunkPos> starts = structures.keySet(Surveyor.explorationForMode(Surveyor.CONFIG.networking.structures, player));
-			packet.starts().get(world.dimension()).forEach(starts::remove);
+			// Fix: a client that doesn't list this dimension (e.g. one created after it joined) threw here and was kicked.
+			Multimap<ResourceKey<Structure>, ChunkPos> known = packet.starts().get(world.dimension());
+			if (known != null) known.forEach(starts::remove);
 			if (starts.isEmpty()) continue;
 			SurveyorExploration personalExploration = SurveyorExploration.of(player);
 			Multimap<ResourceKey<Structure>, ChunkPos> personalStarts = personalExploration.limit(world.dimension(), HashMultimap.create(starts));
@@ -126,15 +128,17 @@ public class SurveyorNetworking {
 			WorldLandmarks landmarks = WorldLandmarks.of(world);
 			if (summary == null || landmarks == null) continue;
 			Multimap<UUID, ResourceLocation> keySet = landmarks.keySet(Surveyor.explorationForMode(Surveyor.CONFIG.networking.landmarks, player));
+			// Fix: a client that doesn't list this dimension threw here and was kicked.
+			Multimap<UUID, ResourceLocation> known = packet.landmarks().getOrDefault(summary.dimension(), HashMultimap.create());
 			Multimap<UUID, ResourceLocation> addLandmarks = HashMultimap.create(keySet);
-			if (!Surveyor.CONFIG.forceUpdateLandmarks) packet.landmarks().get(summary.dimension()).forEach(addLandmarks::remove);
+			if (!Surveyor.CONFIG.forceUpdateLandmarks) known.forEach(addLandmarks::remove);
 			if (!addLandmarks.isEmpty()) SyncLandmarksAddedPacket.of(addLandmarks, landmarks).send(player);
-			Multimap<UUID, ResourceLocation> removeLandmarks = HashMultimap.create(packet.landmarks().get(summary.dimension()));
+			Multimap<UUID, ResourceLocation> removeLandmarks = HashMultimap.create(known);
 			Multimap<UUID, ResourceLocation> removedLandmarks = landmarks.removed();
 			removeLandmarks.entries().removeIf(e -> !(removedLandmarks.containsEntry(e.getKey(), e.getValue()) || (!keySet.containsEntry(e.getKey(), e.getValue()) && !e.getKey().equals(WorldLandmarks.GLOBAL) && !e.getKey().equals(uuid))));
 			if (!removeLandmarks.isEmpty()) new SyncLandmarksRemovedPacket(summary.dimension(), removeLandmarks).send(player);
 			Multimap<UUID, ResourceLocation> unknownWaypoints = HashMultimap.create();
-			unknownWaypoints.putAll(uuid, packet.landmarks().get(summary.dimension()).get(uuid));
+			unknownWaypoints.putAll(uuid, known.get(uuid));
 			landmarks.keySet(null).get(uuid).forEach(id -> unknownWaypoints.remove(uuid, id));
 			removedLandmarks.get(uuid).forEach(id -> unknownWaypoints.remove(uuid, id));
 			if (!unknownWaypoints.isEmpty()) new SyncLandmarksRequestedPacket(summary.dimension(), unknownWaypoints).send(player);
