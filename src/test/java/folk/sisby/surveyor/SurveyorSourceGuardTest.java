@@ -158,4 +158,10 @@ class SurveyorSourceGuardTest {
 		assertFalse(src.contains("packet.starts().get(world.dimension()).forEach("), "a dimension missing from the client's structures throws");
 		assertFalse(src.contains("packet.landmarks().get(summary.dimension())"), "a dimension missing from the client's landmarks throws");
 	}
+
+	@Test
+	@DisplayName("Structure placement works with any WorldGenLevel")
+	void structurePlacementNoCast() throws IOException {
+		assertFalse(read("mixin/MixinStructureStart.java").contains("(WorldGenRegion)"), "other mods' WorldGenLevel wrappers aren't WorldGenRegions");
+	}
 }
