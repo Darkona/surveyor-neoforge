@@ -148,4 +148,25 @@ class LandmarkCodecTest {
 		Landmark back = WorldLandmarks.decode(nbt, ops).get(OWNER, waypoint.id());
 		assertEquals(5, back.get(LandmarkComponentTypes.STACK).getEnchantments().getLevel(registries.lookupOrThrow(Registries.ENCHANTMENT).getOrThrow(Enchantments.SHARPNESS)));
 	}
+
+	@Test
+	@DisplayName("A landmark that exists is never also listed as removed; removeAll works when frozen")
+	void removedBookkeeping() {
+		Landmark kept = landmark("kept");
+		com.google.common.collect.Multimap<UUID, ResourceLocation> removed = com.google.common.collect.HashMultimap.create();
+		removed.put(OWNER, kept.id());
+		removed.put(OWNER, ResourceLocation.fromNamespaceAndPath("test", "gone"));
+		WorldLandmarks landmarks = new WorldLandmarks(null, table(kept), removed, false);
+		assertFalse(landmarks.removed().containsEntry(OWNER, kept.id()), "an existing landmark would be removed from clients that know it");
+		assertTrue(landmarks.removed().containsEntry(OWNER, ResourceLocation.fromNamespaceAndPath("test", "gone")));
+
+		folk.sisby.surveyor.config.SystemMode mode = folk.sisby.surveyor.Surveyor.CONFIG.landmarks;
+		folk.sisby.surveyor.Surveyor.CONFIG.landmarks = folk.sisby.surveyor.config.SystemMode.FROZEN;
+		try {
+			landmarks.removeAll(l -> true);
+			assertTrue(landmarks.contains(OWNER, kept.id()));
+		} finally {
+			folk.sisby.surveyor.Surveyor.CONFIG.landmarks = mode;
+		}
+	}
 }

@@ -83,7 +83,8 @@ public class WorldLandmarks {
 		this.summary = summary;
 		this.landmarks.putAll(landmarks);
 		this.removed = removed == null ? null : Multimaps.synchronizedSetMultimap(HashMultimap.create(removed));
-		if (this.removed != null) this.landmarks.cellSet().forEach(c -> removed.remove(c.getRowKey(), c.getColumnKey()));
+		// Fix: this removed from the argument instead of the copy kept here, so a saved landmark could also stay listed as removed.
+		if (this.removed != null) this.landmarks.cellSet().forEach(c -> this.removed.remove(c.getRowKey(), c.getColumnKey()));
 		this.dirty = dirty;
 	}
 
@@ -296,7 +297,7 @@ public class WorldLandmarks {
 	}
 
 	public Table<UUID, ResourceLocation, Landmark> removeAllForBatch(Table<UUID, ResourceLocation, Landmark> changed, Predicate<Landmark> predicate) {
-		if (Surveyor.CONFIG.landmarks == SystemMode.FROZEN) return null;
+		if (Surveyor.CONFIG.landmarks == SystemMode.FROZEN) return changed; // Fix: null made removeAll throw
 		Table<UUID, ResourceLocation, Landmark> toRemove = HashBasedTable.create(landmarks);
 		toRemove.values().removeIf(predicate.negate());
 		toRemove.cellSet().forEach(c -> removeForBatch(changed, c.getRowKey(), c.getColumnKey()));
