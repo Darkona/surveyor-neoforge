@@ -164,4 +164,10 @@ class SurveyorSourceGuardTest {
 	void structurePlacementNoCast() throws IOException {
 		assertFalse(read("mixin/MixinStructureStart.java").contains("(WorldGenRegion)"), "other mods' WorldGenLevel wrappers aren't WorldGenRegions");
 	}
+
+	@Test
+	@DisplayName("Palette views are safe to read while the server thread appends")
+	void paletteViewConcurrent() throws IOException {
+		assertTrue(read("util/RegistryPalette.java").contains("values = new CopyOnWriteArrayList<>()"), "the client thread reads palette values in singleplayer");
+	}
 }

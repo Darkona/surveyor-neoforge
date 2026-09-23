@@ -6,12 +6,12 @@ import it.unimi.dsi.fastutil.ints.IntIterator;
 import it.unimi.dsi.fastutil.ints.IntIterators;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import net.minecraft.core.DefaultedRegistry;
 import net.minecraft.core.IdMap;
 import net.minecraft.core.Registry;
@@ -95,7 +95,9 @@ public class RegistryPalette<T> implements IntIterable {
 
 	public class ValueView implements IdMap<T> {
 		private final T defaultValue = registry instanceof DefaultedRegistry<T> defreg ? defreg.get(defreg.getDefaultKey()) : registry.byId(0);
-		private final List<T> values = new ArrayList<>();
+		// Fix: in singleplayer map mods read this on the client thread while the server thread's chunk scan appends to it;
+		// an ArrayList could hand them a null or stale entry mid-growth. Appends are rare (new palette entries only).
+		private final List<T> values = new CopyOnWriteArrayList<>();
 		private boolean errored = false;
 
 		public Registry<T> registry() {
