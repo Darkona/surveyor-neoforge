@@ -169,4 +169,34 @@ class LandmarkCodecTest {
 			folk.sisby.surveyor.Surveyor.CONFIG.landmarks = mode;
 		}
 	}
+
+	@Test
+	@DisplayName("Landmarks can be copied on one thread while another adds and removes them (singleplayer)")
+	void copiesWhileChanging() throws InterruptedException {
+		WorldLandmarks landmarks = new WorldLandmarks(null, table(), null, false);
+		java.util.concurrent.atomic.AtomicReference<Throwable> failure = new java.util.concurrent.atomic.AtomicReference<>();
+		java.util.concurrent.atomic.AtomicBoolean done = new java.util.concurrent.atomic.AtomicBoolean();
+		Landmark[] pool = new Landmark[64];
+		for (int i = 0; i < pool.length; i++) pool[i] = landmark("l" + i);
+		Thread writer = new Thread(() -> {
+			for (int n = 0; n < 200_000 && failure.get() == null; n++) {
+				Landmark l = pool[n & 63];
+				if ((n & 64) == 0) landmarks.putForBatch(l);
+				else landmarks.removeForBatch(l.owner(), l.id());
+			}
+			done.set(true);
+		});
+		writer.start();
+		try {
+			while (!done.get() && failure.get() == null) {
+				landmarks.keySet(null);
+				landmarks.asMap(null);
+				landmarks.asMap(OWNER, null);
+			}
+		} catch (Throwable t) {
+			failure.set(t);
+		}
+		writer.join();
+		assertNull(failure.get(), () -> "copying landmarks raced with the writer: " + failure.get());
+	}
 }

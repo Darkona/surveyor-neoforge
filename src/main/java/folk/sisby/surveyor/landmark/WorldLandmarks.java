@@ -201,22 +201,34 @@ public class WorldLandmarks {
 		return contains(uuid, id) ? landmarks.get(uuid, id) : null;
 	}
 
+	// Fix: copying a synchronized table iterates it, which needs its lock; in singleplayer the client thread copies while
+	// the server thread adds and removes landmarks (ConcurrentModificationException).
 	public Map<ResourceLocation, Landmark> asMap(UUID uuid, SurveyorExploration exploration) {
-		Map<ResourceLocation, Landmark> outMap = new HashMap<>(landmarks.row(uuid));
+		Map<ResourceLocation, Landmark> outMap;
+		synchronized (landmarks) {
+			outMap = new HashMap<>(landmarks.row(uuid));
+		}
 		if (exploration != null) outMap.values().removeIf(l -> !exploration.exploredLandmark(summary.dimension(), l));
 		return outMap;
 	}
 
 	public Table<UUID, ResourceLocation, Landmark> asMap(SurveyorExploration exploration) {
-		Table<UUID, ResourceLocation, Landmark> outMap = HashBasedTable.create(landmarks);
+		Table<UUID, ResourceLocation, Landmark> outMap;
+		synchronized (landmarks) {
+			outMap = HashBasedTable.create(landmarks);
+		}
 		if (exploration != null) outMap.values().removeIf(l -> !exploration.exploredLandmark(summary.dimension(), l));
 		return outMap;
 	}
 
 	public Multimap<UUID, ResourceLocation> keySet(SurveyorExploration exploration) {
-		Multimap<UUID, ResourceLocation> outMap = MapUtil.keyMultiMap(landmarks);
-		if (exploration != null) outMap.entries().removeIf(e -> !exploration.exploredLandmark(summary.dimension(), landmarks.get(e.getKey(), e.getValue())));
-		return outMap;
+		if (exploration == null) {
+			synchronized (landmarks) {
+				return MapUtil.keyMultiMap(landmarks);
+			}
+		}
+		Table<UUID, ResourceLocation, Landmark> explored = asMap(exploration);
+		return MapUtil.keyMultiMap(explored);
 	}
 
 	public Multimap<UUID, ResourceLocation> removed() {
