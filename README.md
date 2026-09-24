@@ -53,8 +53,9 @@ This fork keeps Surveyor's features, mod id, save format and network format, so 
 **Platform**
 - Runs natively on NeoForge 21.1 — no Sinytra Connector or Fabric API. It replaces the original's Connector build; don't install both.
 - The configuration file uses NeoForge's format. The `recordIcons` table became the `disabledRecordIcons` list (icons not listed are recorded, as before).
+- The mod list's Config button opens a config screen with every option.
 
-**Fixes** — bugs of the original, fixed here
+**Fixes** — bugs of the original, fixed here. Each fix's commit references the original issue number where there is one.
 - Saving can no longer lose map data: a server stopping right after an autosave, a crash in the middle of writing a file, or two saves of the same file overlapping each used to be able to drop or corrupt a region.
 - Singleplayer is safe from races between the game and its built-in server, which could crash the game or drop freshly recorded chunks.
 - Friends are no longer shown as offline after every autosave.
@@ -62,6 +63,20 @@ This fork keeps Surveyor's features, mod id, save format and network format, so 
 - Map mods are always notified on the game's own thread, so every addon is safe in singleplayer.
 - A region's terrain is only unloaded once all of its chunks are. Before, only a quarter of the region was checked, so a region could be saved and dropped while you were still in it, then read back from disk.
 - A rare case where saving a region scrambled part of its terrain data (a value above 32767 overwrote its neighbour) is fixed.
+- Dying to a named, enchanted weapon no longer crashes the server or the client, and a landmark that can't be read or written is skipped and logged instead of failing the whole save or packet.
+- Biomes a mod doesn't register, ids past the registry size, and datapack dimensions with an inline dimension type no longer crash the chunk scan. Dimensions of a different height than the previous one in the same session are recorded again.
+- Structures missing from the registry, and mods that place structures through their own world-generation level, no longer crash the server or world generation.
+- A connection without Surveyor data, such as a ReplayMod playback, no longer crashes the client, and a player is no longer disconnected when the server has a dimension their client didn't list at login.
+- Joining or leaving a share group drops the old group's explored areas and structures instead of leaving them on the map.
+- A landmark saved as both present and removed is no longer deleted from the clients that know it, and removing landmarks while the landmark system is frozen no longer throws.
+- Singleplayer map mods can read landmarks and terrain palettes while the built-in server changes them without crashing.
+
+**New features**
+- Lodestones and other POIs placed by world generation no longer make the server finish generating their chunk on the spot (stalls, worse with C2ME); their landmark is added once the chunk has loaded. Option `builtins.poiLandmarksFromWorldgen` skips them entirely.
+- Players in spectator mode or with invisibility no longer show up on other players' maps; they keep their last visible position. Option `networking.hideHiddenPlayers`.
+
+**For map mods**
+- New client event `ExplorationReset`, fired when the player's share group changes and the shared exploration is replaced, so a map can drop areas the new group hasn't explored.
 
 **Performance**
 - Recording a chunk no longer creates objects for every block it scans.
@@ -70,6 +85,7 @@ This fork keeps Surveyor's features, mod id, save format and network format, so 
 - The raycast that discovers structures you look at only runs when your view changes.
 - Asking for a group's shared map no longer copies every member's exploration.
 - Checking whether a region can be unloaded, done every time a chunk unloads, no longer creates hundreds of objects.
+- Working out who receives a sent chunk no longer builds sets of players for every chunk.
 
 ## Credits and license
 
