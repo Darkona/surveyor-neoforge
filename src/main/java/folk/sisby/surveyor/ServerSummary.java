@@ -316,7 +316,8 @@ public final class ServerSummary {
 	}
 
 	public Set<UUID> getSharing(UUID player, NetworkMode mode, boolean withSelf) {
-		return mode.atMost(NetworkMode.SOLO) && !withSelf ? Set.of() : mode.atMost(NetworkMode.SOLO) ? Set.of(player) : mode.atMost(NetworkMode.GROUP) ? getGroup(player) : offlineSummaries.keySet();
+		// Fix: with global sharing getGroup copies every known player; callers only read, so share the live key set.
+		return mode.atMost(NetworkMode.SOLO) && !withSelf ? Set.of() : mode.atMost(NetworkMode.SOLO) ? Set.of(player) : mode.atMost(NetworkMode.GROUP) && shareGroups != null ? getGroup(player) : offlineSummaries.keySet();
 	}
 
 	public SurveyorExploration getSharingExploration(UUID player, NetworkMode mode, boolean withSelf) {

@@ -51,6 +51,10 @@ class SurveyorSourceGuardTest {
 		addChunk = addChunk.substring(0, addChunk.indexOf("SurveyorExploration.super.addChunk"));
 		assertFalse(addChunk.contains("return;"), "nothing may return before the chunk is recorded as explored");
 		assertTrue(addChunk.indexOf("S2CPacket.hasRecipients(") < addChunk.indexOf("S2CUpdateRegionPacket.of("), "check recipients before building the payload");
+		String packet = read("packet/S2CPacket.java");
+		String recipients = packet.substring(packet.indexOf("static boolean hasRecipients("));
+		recipients = recipients.substring(0, recipients.indexOf("\n\t}"));
+		assertFalse(recipients.contains("getSharingPlayers(") || recipients.contains("stream()"), "the per-chunk recipient check must not build player sets");
 	}
 
 	@Test

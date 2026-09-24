@@ -57,9 +57,11 @@ public interface S2CPacket extends SurveyorPacket {
 
 	static boolean hasRecipients(UUID sender, MinecraftServer server, Predicate<ServerPlayer> filter, NetworkMode mode, boolean withSelf, CustomPacketPayload.Type<?> type) {
 		if (mode.atMost(NetworkMode.NONE) || (sender != null && mode.atMost(NetworkMode.SOLO))) return false;
-		Set<ServerPlayer> group = sender == null ? null : ServerSummary.of(server).getSharingPlayers(sender, mode, withSelf);
+		// Fix: runs for every chunk sent to every player; the UUID set avoids streaming the player list into a new set.
+		Set<UUID> group = sender == null ? null : ServerSummary.of(server).getSharing(sender, mode, withSelf);
+		if (group != null && group.isEmpty()) return false;
 		for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-			if (group != null && !group.contains(player)) continue;
+			if (group != null && !group.contains(Surveyor.getUuid(player))) continue;
 			if (!filter.test(player)) continue;
 			if (!player.connection.hasChannel(type) || server.isSingleplayerOwner(player.getGameProfile())) continue;
 			return true;
