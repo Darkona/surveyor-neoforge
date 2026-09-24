@@ -8,6 +8,7 @@ import folk.sisby.surveyor.client.SurveyorNetworkHandler;
 import folk.sisby.surveyor.landmark.Landmark;
 import folk.sisby.surveyor.landmark.WorldLandmarks;
 import folk.sisby.surveyor.landmark.component.LandmarkComponentTypes;
+import folk.sisby.surveyor.packet.S2CWorldIdPacket;
 import folk.sisby.surveyor.util.TextUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -35,7 +36,7 @@ public abstract class MixinClientPlayNetworkHandler implements SurveyorNetworkHa
 	private void onJoin(ClientboundLoginPacket packet, CallbackInfo ci) {
 		if (surveyor$summary != null) return; // some mods might do this
 		ClientPacketListener self = (ClientPacketListener) (Object) this;
-		surveyor$summary = new ClientSummary(packet.commonPlayerSpawnInfo().seed(), self);
+		surveyor$summary = new ClientSummary(packet.commonPlayerSpawnInfo().seed(), S2CWorldIdPacket.take(self.getConnection()), self);
 		surveyor$summary.connect();
 	}
 

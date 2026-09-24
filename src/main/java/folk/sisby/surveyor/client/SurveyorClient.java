@@ -19,6 +19,7 @@ import folk.sisby.surveyor.packet.C2SKnownTerrainPacket;
 import folk.sisby.surveyor.structure.WorldStructures;
 import folk.sisby.surveyor.terrain.WorldTerrain;
 import folk.sisby.surveyor.util.RegionPos;
+import folk.sisby.surveyor.util.SaveFolders;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -69,9 +70,23 @@ public class SurveyorClient {
 		LOADING_CHUNKS.clear();
 	}
 
+	public static Path getSaveRoot() {
+		return FMLPaths.GAMEDIR.get().resolve(Surveyor.DATA_SUBFOLDER).resolve(Surveyor.ID);
+	}
+
+	/**
+	 * The folder name for this server: its world id when it sent one, else the seed (sisby-folk/surveyor#131).
+	 */
+	public static String resolveSaveFolder(long biomeSeed, @Nullable UUID worldId) {
+		return SaveFolders.folderName(getSaveRoot(), biomeSeed, worldId);
+	}
+
 	public static File getSavePath(long biomeSeed) {
-		String saveFolder = String.valueOf(biomeSeed);
-		Path savePath = FMLPaths.GAMEDIR.get().resolve(Surveyor.DATA_SUBFOLDER).resolve(Surveyor.ID).resolve(saveFolder);
+		return getSavePath(SaveFolders.seedFolder(biomeSeed));
+	}
+
+	public static File getSavePath(String saveFolder) {
+		Path savePath = getSaveRoot().resolve(saveFolder);
 		savePath.toFile().mkdirs();
 		File serversFile = savePath.resolve(SERVERS_FILE_NAME).toFile();
 		try {
@@ -86,9 +101,13 @@ public class SurveyorClient {
 	}
 
 	public static File getWorldSavePath(ResourceKey<Level> dimension, long biomeSeed) {
+		return getWorldSavePath(dimension, SaveFolders.seedFolder(biomeSeed));
+	}
+
+	public static File getWorldSavePath(ResourceKey<Level> dimension, String saveFolder) {
 		String dimNamespace = dimension.location().getNamespace();
 		String dimPath = dimension.location().getPath();
-		return getSavePath(biomeSeed).toPath().resolve(dimNamespace).resolve(dimPath).toFile();
+		return getSavePath(saveFolder).toPath().resolve(dimNamespace).resolve(dimPath).toFile();
 	}
 
 	public static @Nullable File getXaerosSavePath(ResourceKey<Level> dimension) {

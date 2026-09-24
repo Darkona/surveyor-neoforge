@@ -14,6 +14,7 @@ import net.minecraft.nbt.NbtIo;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
+import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.HashMap;
@@ -26,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ClientSummary {
 	public static final String KEY_SHARED = "shared";
-	private final long biomeSeed;
+	private final String saveFolder;
 	private final ClientPacketListener handler;
 	private final Map<UUID, PlayerSummary> players;
 	private final Map<ResourceKey<Level>, WorldSummary> worlds;
@@ -35,13 +36,27 @@ public class ClientSummary {
 	public final File saveFile;
 
 	public ClientSummary(long biomeSeed, ClientPacketListener handler) {
-		this.biomeSeed = biomeSeed;
+		this(biomeSeed, null, handler);
+	}
+
+	/**
+	 * @param worldId the id the server sent during configuration, or null for servers that don't (sisby-folk/surveyor#131).
+	 */
+	public ClientSummary(long biomeSeed, @Nullable UUID worldId, ClientPacketListener handler) {
+		this.saveFolder = SurveyorClient.resolveSaveFolder(biomeSeed, worldId);
 		this.handler = handler;
 		this.players = new HashMap<>();
 		this.worlds = new ConcurrentHashMap<>();
 		this.personal = new SurveyorClient.ClientExploration(new HashSet<>(), HashBasedTable.create(), HashBasedTable.create());
 		this.shared = new SurveyorClient.ClientExploration(new HashSet<>(), HashBasedTable.create(), HashBasedTable.create());
-		this.saveFile = SurveyorClient.getSavePath(biomeSeed).toPath().resolve(SurveyorClient.getClientUuid().toString() + ".dat").toFile();
+		this.saveFile = SurveyorClient.getSavePath(saveFolder).toPath().resolve(SurveyorClient.getClientUuid().toString() + ".dat").toFile();
+	}
+
+	/**
+	 * The folder under {@code data/surveyor} holding this server's map.
+	 */
+	public String saveFolder() {
+		return saveFolder;
 	}
 
 	public static ClientSummary of(ClientPacketListener handler) {
@@ -78,7 +93,7 @@ public class ClientSummary {
 	}
 
 	public WorldSummary getWorld(ResourceKey<Level> dimension) {
-		return worlds.computeIfAbsent(dimension, k -> new WorldSummary(null, dimension, handler.registryAccess(), SurveyorClient.getWorldSavePath(dimension, biomeSeed)));
+		return worlds.computeIfAbsent(dimension, k -> new WorldSummary(null, dimension, handler.registryAccess(), SurveyorClient.getWorldSavePath(dimension, saveFolder)));
 	}
 
 	public void connect() {
@@ -100,7 +115,7 @@ public class ClientSummary {
 	public void disconnect() {
 		SurveyorClient.clearLoadingChunks();
 		for (WorldSummary summary : worlds.values()) {
-			summary.save(null, SurveyorClient.getWorldSavePath(summary.dimension(), biomeSeed), false);
+			summary.save(null, SurveyorClient.getWorldSavePath(summary.dimension(), saveFolder), false);
 		}
 		CompoundTag nbt = personal.write(new CompoundTag());
 		CompoundTag sharedNbt = shared.write(new CompoundTag());
@@ -110,6 +125,6 @@ public class ClientSummary {
 	}
 
 	public void leaveWorld(ResourceKey<Level> dimension) {
-		if (worlds.containsKey(dimension)) worlds.get(dimension).save(null, SurveyorClient.getWorldSavePath(dimension, biomeSeed), false);
+		if (worlds.containsKey(dimension)) worlds.get(dimension).save(null, SurveyorClient.getWorldSavePath(dimension, saveFolder), false);
 	}
 }

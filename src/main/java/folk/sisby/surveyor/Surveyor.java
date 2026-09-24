@@ -126,6 +126,7 @@ public class Surveyor {
 		modBus.addListener(ModConfigEvent.Loading.class, e -> onConfig(e.getConfig()));
 		modBus.addListener(ModConfigEvent.Reloading.class, e -> onConfig(e.getConfig()));
 		modBus.addListener(SurveyorNetworking::register);
+		modBus.addListener(SurveyorNetworking::registerTasks);
 		LandmarkComponentTypes.touch();
 		SurveyorGameEvents.register();
 		NeoForge.EVENT_BUS.addListener(RegisterCommandsEvent.class, e -> SurveyorCommands.registerCommands(e.getDispatcher(), e.getBuildContext(), e.getCommandSelection()));

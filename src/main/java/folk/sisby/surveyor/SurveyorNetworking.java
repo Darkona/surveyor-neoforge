@@ -17,6 +17,8 @@ import folk.sisby.surveyor.packet.S2CUpdateRegionPacket;
 import folk.sisby.surveyor.packet.S2CGroupChangedPacket;
 import folk.sisby.surveyor.packet.S2CGroupUpdatedPacket;
 import folk.sisby.surveyor.packet.S2CStructuresAddedPacket;
+import folk.sisby.surveyor.packet.S2CWorldIdPacket;
+import folk.sisby.surveyor.packet.WorldIdConfigurationTask;
 import folk.sisby.surveyor.packet.SyncLandmarksAddedPacket;
 import folk.sisby.surveyor.packet.SyncLandmarksRemovedPacket;
 import folk.sisby.surveyor.packet.SyncLandmarksRequestedPacket;
@@ -31,6 +33,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.structure.Structure;
+import net.neoforged.neoforge.server.ServerLifecycleHooks;
+import net.neoforged.neoforge.network.event.RegisterConfigurationTasksEvent;
 import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 import net.neoforged.neoforge.network.registration.PayloadRegistrar;
@@ -65,6 +69,18 @@ public class SurveyorNetworking {
 		registrar.playBidirectional(SyncLandmarksAddedPacket.ID, SyncLandmarksAddedPacket.CODEC, (packet, context) -> receiveSync(packet, context, SurveyorNetworking::handleLandmarksAdded));
 		registrar.playBidirectional(SyncLandmarksRemovedPacket.ID, SyncLandmarksRemovedPacket.CODEC, (packet, context) -> receiveSync(packet, context, SurveyorNetworking::handleLandmarksRemoved));
 		registrar.playBidirectional(SyncLandmarksRequestedPacket.ID, SyncLandmarksRequestedPacket.CODEC, (packet, context) -> receiveSync(packet, context, SurveyorNetworking::handleLandmarksRequested));
+
+		// Implements sisby-folk/surveyor#131: optional, so original clients and servers connect as before.
+		registrar.configurationToClient(S2CWorldIdPacket.ID, S2CWorldIdPacket.CODEC, S2CWorldIdPacket::receive);
+	}
+
+	public static void registerTasks(RegisterConfigurationTasksEvent event) {
+		// The singleplayer host reads the server's summaries directly; it has no client folder to pick.
+		if (!event.getListener().hasChannel(S2CWorldIdPacket.ID) || event.getListener().getConnection().isMemoryConnection()) return;
+		MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
+		ServerSummary summary = server == null ? null : ServerSummary.of(server);
+		if (summary == null || summary.worldId() == null) return;
+		event.register(new WorldIdConfigurationTask(event.getListener(), summary.worldId()));
 	}
 
 	private static void receiveClient(S2CPacket packet, IPayloadContext context) {

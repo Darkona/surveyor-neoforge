@@ -44,15 +44,23 @@ import java.util.stream.StreamSupport;
 
 public final class ServerSummary {
 	public static final String KEY_GROUPS = "groups";
+	public static final String WORLD_ID_FILE = "world_id.dat";
+	public static final String KEY_WORLD_ID = "id";
 	public static final UUID HOST = UUID.fromString("00000000-0000-0000-0000-000000000000");
 	private final MinecraftServer server;
 	private final Map<UUID, PlayerSummary> offlineSummaries;
 	private final Map<UUID, Set<UUID>> shareGroups;
 	private final Map<ResourceKey<Level>, WorldSummary> worlds;
+	private final @Nullable UUID worldId;
 	private boolean dirty = false;
 
 	public ServerSummary(MinecraftServer server, Map<UUID, PlayerSummary> offlineSummaries, @Nullable Map<UUID, Set<UUID>> shareGroups) {
+		this(server, offlineSummaries, shareGroups, null);
+	}
+
+	public ServerSummary(MinecraftServer server, Map<UUID, PlayerSummary> offlineSummaries, @Nullable Map<UUID, Set<UUID>> shareGroups, @Nullable UUID worldId) {
 		this.server = server;
+		this.worldId = worldId;
 		this.offlineSummaries = offlineSummaries;
 		this.shareGroups = shareGroups;
 		// Fix: read by the singleplayer client thread.
@@ -81,6 +89,28 @@ public final class ServerSummary {
 			}
 		});
 		return shareGroups;
+	}
+
+	/**
+	 * The world's stable id, sent to clients so they pick their map folder by it instead of by seed (sisby-folk/surveyor#131).
+	 * Generated once and kept in {@value #WORLD_ID_FILE}; the original mod never reads that file.
+	 */
+	public static UUID loadWorldId(File folder) {
+		File file = new File(folder, WORLD_ID_FILE);
+		if (file.exists()) {
+			try {
+				CompoundTag nbt = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap());
+				if (nbt.hasUUID(KEY_WORLD_ID)) return nbt.getUUID(KEY_WORLD_ID);
+				Surveyor.LOGGER.warn("[Surveyor] World id file {} has no id; creating a new one.", file);
+			} catch (IOException | ReportedNbtException e) {
+				Surveyor.LOGGER.error("[Surveyor] Error loading world id file; creating a new one.", e);
+			}
+		}
+		UUID id = UUID.randomUUID();
+		CompoundTag nbt = new CompoundTag();
+		nbt.putUUID(KEY_WORLD_ID, id);
+		SafeNbtWriter.write(file.toPath(), nbt);
+		return id;
 	}
 
 	public static ServerSummary load(MinecraftServer server) {
@@ -124,7 +154,7 @@ public final class ServerSummary {
 			}
 		}
 
-		return new ServerSummary(server, offlineSummaries, shareGroups);
+		return new ServerSummary(server, offlineSummaries, shareGroups, loadWorldId(Surveyor.getSavePath(Level.OVERWORLD, server)));
 	}
 
 	public static void onPlayerJoin(ServerPlayer player, MinecraftServer server) {
@@ -350,5 +380,9 @@ public final class ServerSummary {
 
 	public MinecraftServer getServer() {
 		return server;
+	}
+
+	public @Nullable UUID worldId() {
+		return worldId;
 	}
 }
