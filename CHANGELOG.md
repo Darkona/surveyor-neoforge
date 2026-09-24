@@ -29,15 +29,23 @@ until the date listed.
 - Lodestones and other tracked POIs placed by world generation no longer make the server finish generating their
   chunk on the spot (stalls, worse with C2ME). Their landmark is added once the chunk has fully loaded. New option
   `builtins.poiLandmarksFromWorldgen` to skip them entirely. (surveyor#145, surveyor#147, surveyor#136)
+- A landmark saved as both present and removed is no longer deleted from the clients that know it.
+- Removing landmarks while the landmark system is frozen no longer throws an error.
 
 ### Terrain
 - Biomes that a mod doesn't register (End's Phantasm) and ids past the registry size no longer crash the chunk scan
   every time the chunk loads; they are recorded as the void biome or the default block. (surveyor#121, surveyor#135,
   surveyor#141, surveyor#142)
 - Chunks you visit are recorded as explored even when the terrain system is turned off.
+- After joining a server or opening a world whose dimension has a different height than the one played before in that
+  game session, chunks there are recorded again instead of failing on every chunk load.
+- Datapack dimensions that define their dimension type inline are recorded instead of failing on every chunk load.
 
 ### Structures
 - A structure missing from the registry is skipped and logged instead of crashing. (surveyor#142)
+- A structure missing from the registry no longer crashes the server when a player walks into or looks at it.
+  (surveyor#142)
+- Mods that place structures through their own world-generation level no longer crash world generation.
 
 ### Multiplayer and threads
 - Singleplayer is safe from races between the game and its built-in server, which could crash the game or drop freshly
@@ -45,6 +53,11 @@ until the date listed.
 - Friends are no longer shown as offline after every autosave.
 - Map mods are always notified on the game's own thread.
 - A connection without Surveyor data, such as a ReplayMod playback, no longer crashes the client. (surveyor#151)
+- Joining or leaving a share group drops the old group's explored areas and structures; they used to stay on the map.
+- A player is no longer disconnected when the server has a dimension their client didn't list at login, such as a
+  dimension created while playing.
+- Singleplayer: map mods reading landmarks and terrain palettes while the built-in server changes them can no longer
+  crash.
 
 ### Player positions
 - Players in spectator mode or with invisibility no longer show up on other players' maps; they keep their last visible
@@ -61,6 +74,7 @@ until the date listed.
 - The structure-discovery raycast only runs when your view changes.
 - A group's shared map is a live view instead of a copy of every member's exploration.
 - The region unload check, run on every chunk unload, no longer creates hundreds of objects.
+- Working out who receives a sent chunk no longer builds sets of players for every chunk.
 
 ### Tests
 - Regression tests for region coordinates and encodings, packed terrain values, the terrain palette, landmark saving
