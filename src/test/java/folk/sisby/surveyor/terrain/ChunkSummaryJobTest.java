@@ -11,6 +11,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.function.ToIntFunction;
 import java.util.concurrent.Executors;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -239,6 +240,32 @@ class ChunkSummaryJobTest {
 		} finally {
 			pool.shutdown();
 		}
+	}
+
+	@Test
+	@DisplayName("Scanning a chunk allocates per chunk, not per block it walks")
+	void scanAllocatesPerChunk() {
+		MappedRegistry<Biome> biomes = biomes();
+		int[] layerHeights = layers();
+		LevelChunkSection[] sections = terrain(biomes, 3);
+		SectionSummary[] summaries = summaries(sections);
+		BlockGetter level = getter(sections);
+		RegistryPalette<Biome> biomePalette = biomePalette(biomes);
+		RegistryPalette<Block> blockPalette = blockPalette();
+		ToIntFunction<Biome> biomeIds = biomePalette::findOrAdd;
+		ToIntFunction<Block> blockIds = blockPalette::findOrAdd;
+		Runnable scan = () -> ChunkScan.scan(summaries, MIN_SECTION, 0, 0, MIN_Y, MAX_Y, layerHeights, level, biomeIds, blockIds);
+		com.sun.management.ThreadMXBean threads = (com.sun.management.ThreadMXBean) java.lang.management.ManagementFactory.getThreadMXBean();
+		long thread = Thread.currentThread().threadId();
+		for (int warm = 0; warm < 50; warm++) scan.run();
+		int passes = 20;
+		long before = threads.getThreadAllocatedBytes(thread);
+		for (int i = 0; i < passes; i++) scan.run();
+		long perChunk = (threads.getThreadAllocatedBytes(thread) - before) / passes;
+		// The floors arrays (layers x 256 columns) are the only per-chunk cost; one object per block walked would be
+		// 16 x 16 x 384 objects, several megabytes.
+		long floors = (long) (layerHeights.length - 1) * ChunkScan.COLUMNS * 5 * Integer.BYTES;
+		assertTrue(perChunk < floors + 16 * 1024, "a chunk scan allocates " + perChunk + " bytes");
 	}
 
 	static class LevelColoredBlock extends Block {
