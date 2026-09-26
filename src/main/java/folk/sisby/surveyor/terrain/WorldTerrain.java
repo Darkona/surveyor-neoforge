@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
@@ -36,6 +38,10 @@ public class WorldTerrain {
 	protected final Map<RegionPos, RegionSummary> regions = new ConcurrentHashMap<>();
 	protected final File folder;
 	protected final Map<RegionPos, Map<UUID, BitSet>> queuedUpdates = new LinkedHashMap<>();
+	// Chunks being summarised on a worker (sisby-folk/surveyor#148); the map is only touched on the server thread.
+	public static final int MAX_PENDING = 256;
+	private final Long2ObjectOpenHashMap<ChunkSummaryJob> pending = new Long2ObjectOpenHashMap<>();
+	private final ConcurrentLinkedQueue<ChunkSummaryJob> finished = new ConcurrentLinkedQueue<>();
 
 	public static WorldTerrain of(Level world) {
 		if (world == null) return null;
@@ -119,8 +125,72 @@ public class WorldTerrain {
 
 	public void put(Level world, LevelChunk chunk) {
 		if (Surveyor.CONFIG.terrain == SystemMode.FROZEN) return;
+		if (world instanceof ServerLevel && Surveyor.CONFIG.asyncChunkSummaries && world.getHeight() != 0 && pending.size() < MAX_PENDING) {
+			ChunkSnapshot snapshot = ChunkSnapshot.of(chunk.getSections(), chunk.getPos(), chunk.getMinSection(), world.getMinBuildHeight(), world.getMaxBuildHeight(), DimensionSupport.getSummaryLayers(world), null);
+			if (snapshot != null) {
+				ChunkSummaryJob job = new ChunkSummaryJob(snapshot, finished::add);
+				pending.put(chunk.getPos().toLong(), job); // a job still pending for this chunk is now stale
+				job.submit();
+				return;
+			}
+		}
+		putInPlace(world, chunk);
+	}
+
+	private void putInPlace(Level world, LevelChunk chunk) {
+		if (!pending.isEmpty()) pending.remove(chunk.getPos().toLong());
 		regions.computeIfAbsent(RegionPos.of(chunk.getPos()), k -> RegionSummary.fromEmpty(folder, summary, RegionPos.of(chunk.getPos()))).putChunk(world, chunk);
 		SurveyorEvents.Invoke.terrainUpdated(WorldSummary.of(world), chunk.getPos());
+	}
+
+	private void publish(ServerLevel world, ChunkSummaryJob job) {
+		ChunkPos pos = job.snapshot.pos;
+		if (job.error() != null) {
+			Surveyor.LOGGER.error("[Surveyor] Error summarising chunk {} off-thread; summarising it in place.", pos, job.error());
+			LevelChunk chunk = world.getChunkSource().getChunkNow(pos.x, pos.z);
+			if (chunk != null) putInPlace(world, chunk);
+			return;
+		}
+		regions.computeIfAbsent(RegionPos.of(pos), k -> RegionSummary.fromEmpty(folder, summary, RegionPos.of(pos))).putScanned(world, job);
+		SurveyorEvents.Invoke.terrainUpdated(summary, pos);
+	}
+
+	/**
+	 * Publishes the chunks the workers finished. Server thread only.
+	 */
+	public void publishFinished(ServerLevel world) {
+		for (ChunkSummaryJob job; (job = finished.poll()) != null; ) {
+			long key = job.snapshot.pos.toLong();
+			if (pending.get(key) != job) continue; // replaced by a newer summary
+			pending.remove(key);
+			publish(world, job);
+		}
+	}
+
+	/**
+	 * Publishes this chunk's summary now if it's still being made, so it can be read or sent. Server thread only.
+	 */
+	public void finishPending(ServerLevel world, ChunkPos pos) {
+		if (pending.isEmpty()) return;
+		ChunkSummaryJob job = pending.remove(pos.toLong());
+		if (job == null) return;
+		job.finish();
+		publish(world, job);
+	}
+
+	/**
+	 * Publishes every summary still being made, e.g. before saving. Server thread only.
+	 */
+	public void finishPending(ServerLevel world) {
+		while (!pending.isEmpty()) {
+			ChunkSummaryJob[] jobs = pending.values().toArray(new ChunkSummaryJob[0]);
+			pending.clear();
+			for (ChunkSummaryJob job : jobs) {
+				job.finish();
+				publish(world, job);
+			}
+		}
+		finished.clear();
 	}
 
 	public static void onTick(ServerLevel world) {
@@ -138,6 +208,7 @@ public class WorldTerrain {
 	}
 
 	public void serverTick(ServerLevel world) {
+		if (!finished.isEmpty()) publishFinished(world);
 		if (queuedUpdates.isEmpty() || (world.getServer().getTickCount() % Surveyor.CONFIG.networking.terrainTicks) != 0) return;
 		RegionPos regionPos = queuedUpdates.keySet().iterator().next();
 		RegionSummary region = getRegion(regionPos);
@@ -158,6 +229,7 @@ public class WorldTerrain {
 	}
 
 	public int save(@Nullable Level world) {
+		if (world instanceof ServerLevel serverWorld) finishPending(serverWorld);
 		List<RegionPos> savedRegions = new ArrayList<>();
 		regions.forEach((pos, summary) -> {
 			if (summary.isLoaded()) {
@@ -169,6 +241,6 @@ public class WorldTerrain {
 	}
 
 	public boolean isDirty() {
-		return regions.values().stream().anyMatch(RegionSummary::isDirty);
+		return !pending.isEmpty() || regions.values().stream().anyMatch(RegionSummary::isDirty);
 	}
 }

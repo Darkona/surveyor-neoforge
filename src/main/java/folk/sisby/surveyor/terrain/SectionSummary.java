@@ -14,17 +14,19 @@ public record SectionSummary(Palette<BlockState> blockPalette, int[] blockIndice
 		if (section.hasOnlyAir()) {
 			return null;
 		} else {
-			int[] blockIndices = new int[PalettedContainer.Strategy.SECTION_STATES.size()];
-			section.getStates().data.storage().unpack(blockIndices);
-			int[] biomeIndices = new int[PalettedContainer.Strategy.SECTION_BIOMES.size()];
-			((PalettedContainer<Holder<Biome>>) section.getBiomes()).data.storage().unpack(biomeIndices);
-			return new SectionSummary(
-				section.getStates().data.palette(),
-				blockIndices,
-				((PalettedContainer<Holder<Biome>>) section.getBiomes()).data.palette(),
-				biomeIndices
-			);
+			return of(section.getStates(), (PalettedContainer<Holder<Biome>>) section.getBiomes());
 		}
+	}
+
+	/**
+	 * Also used on copies of a section's containers, off the level's thread (sisby-folk/surveyor#148).
+	 */
+	public static SectionSummary of(PalettedContainer<BlockState> states, PalettedContainer<Holder<Biome>> biomes) {
+		int[] blockIndices = new int[PalettedContainer.Strategy.SECTION_STATES.size()];
+		states.data.storage().unpack(blockIndices);
+		int[] biomeIndices = new int[PalettedContainer.Strategy.SECTION_BIOMES.size()];
+		biomes.data.storage().unpack(biomeIndices);
+		return new SectionSummary(states.data.palette(), blockIndices, biomes.data.palette(), biomeIndices);
 	}
 
 	public BlockState getBlockState(int relativeX, int y, int relativeZ) {

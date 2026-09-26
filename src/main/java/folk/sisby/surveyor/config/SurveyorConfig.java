@@ -18,6 +18,7 @@ public class SurveyorConfig {
 	public boolean discoveryMessages = false;
 	public boolean debugCommands = false;
 	public boolean lazyClientUpdating = true;
+	public boolean asyncChunkSummaries = true;
 	public boolean forceUpdateLandmarks = true;
 	public Networking networking = new Networking();
 	public Builtins builtins = new Builtins();
@@ -67,6 +68,7 @@ public class SurveyorConfig {
 	private static final ModConfigSpec.BooleanValue DISCOVERY_MESSAGES;
 	private static final ModConfigSpec.BooleanValue DEBUG_COMMANDS;
 	private static final ModConfigSpec.BooleanValue LAZY_CLIENT_UPDATING;
+	private static final ModConfigSpec.BooleanValue ASYNC_CHUNK_SUMMARIES;
 	private static final ModConfigSpec.BooleanValue FORCE_UPDATE_LANDMARKS;
 	private static final ModConfigSpec.BooleanValue NET_GLOBAL_SHARING;
 	private static final ModConfigSpec.EnumValue<NetworkMode> NET_TERRAIN;
@@ -96,6 +98,7 @@ public class SurveyorConfig {
 		DISCOVERY_MESSAGES = b.comment("Logs structure discovery to the action bar.", "E.g. 'Discovered Village Plains at [91, 63, -54]'").define("discoveryMessages", d.discoveryMessages);
 		DEBUG_COMMANDS = b.comment("Force-enables the following commands.", "waypoints/landmarks raw | prints the raw SNBT of a landmark").define("debugCommands", d.debugCommands);
 		LAZY_CLIENT_UPDATING = b.comment("Ignores chunk changes that don't affect the amount of air in the chunk", "Saves on performance, a little inaccurate sometimes.").define("lazyClientUpdating", d.lazyClientUpdating);
+		ASYNC_CHUNK_SUMMARIES = b.comment("[Server] Summarises loaded chunks on a background thread instead of the server thread.", "Same map data; turn off to go back to summarising in place.").define("asyncChunkSummaries", d.asyncChunkSummaries);
 		FORCE_UPDATE_LANDMARKS = b.comment("Ignores known landmarks when syncing landmarks to the client", "A temporary fix until landmarks have some kind of revision counter").define("forceUpdateLandmarks", d.forceUpdateLandmarks);
 
 		b.push("networking");
@@ -141,6 +144,7 @@ public class SurveyorConfig {
 		discoveryMessages = DISCOVERY_MESSAGES.get();
 		debugCommands = DEBUG_COMMANDS.get();
 		lazyClientUpdating = LAZY_CLIENT_UPDATING.get();
+		asyncChunkSummaries = ASYNC_CHUNK_SUMMARIES.get();
 		forceUpdateLandmarks = FORCE_UPDATE_LANDMARKS.get();
 		networking.globalSharing = NET_GLOBAL_SHARING.get();
 		networking.terrain = NET_TERRAIN.get();

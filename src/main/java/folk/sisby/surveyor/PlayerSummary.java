@@ -20,6 +20,7 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.ChunkPos;
@@ -287,6 +288,8 @@ public interface PlayerSummary {
 				WorldSummary summary = WorldSummary.of(player.getServer().getLevel(dimension));
 				// Fix: record the chunk as explored even when the terrain system is off.
 				WorldTerrain terrain = summary == null ? null : summary.terrain();
+				// The chunk may still be summarising off-thread (sisby-folk/surveyor#148): the packet and the map need it now.
+				if (terrain != null && player.getServer().isSameThread() && player.getServer().getLevel(dimension) instanceof ServerLevel level) terrain.finishPending(level, pos);
 				if (terrain != null && Surveyor.CONFIG.networking.terrain.atLeast(NetworkMode.SOLO)) {
 					UUID sender = Surveyor.getUuid(player);
 					Predicate<ServerPlayer> unexplored = p -> !SurveyorExploration.of(p).exploredChunk(dimension, pos);

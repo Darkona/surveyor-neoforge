@@ -6,6 +6,7 @@
 	"surveyor.configuration.discoveryMessages": "Discovery messages",
 	"surveyor.configuration.debugCommands": "Debug commands",
 	"surveyor.configuration.lazyClientUpdating": "Lazy client updating",
+	"surveyor.configuration.asyncChunkSummaries": "Summarise chunks in the background",
 	"surveyor.configuration.forceUpdateLandmarks": "Force-update landmarks",
 	"surveyor.configuration.networking": "Networking",
 	"surveyor.configuration.globalSharing": "Global sharing",

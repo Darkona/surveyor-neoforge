@@ -9,20 +9,14 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.SectionPos;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.material.Fluid;
-import net.minecraft.world.level.material.Fluids;
-import net.minecraft.world.level.material.MapColor;
 
 public class ChunkSummary {
 	public static final int MINIMUM_AIR_DEPTH = 2;
@@ -34,7 +28,6 @@ public class ChunkSummary {
 
 	public ChunkSummary(Level world, LevelChunk chunk, int[] layerHeights, RegistryPalette<Biome> biomePalette, RegistryPalette<Block> blockPalette, boolean countAir) {
 		this.airCount = countAir ? ChunkUtil.airCount(chunk) : null;
-		LayerSummary.FloorSummary[][] layerFloors = new LayerSummary.FloorSummary[layerHeights.length - 1][256];
 		LevelChunkSection[] rawSections = chunk.getSections();
 		SectionSummary[] sections = new SectionSummary[rawSections.length];
 		for (int i = 0; i < rawSections.length; i++) {
@@ -42,79 +35,21 @@ public class ChunkSummary {
 		}
 		int chunkX = chunk.getPos().getMinBlockX();
 		int chunkZ = chunk.getPos().getMinBlockZ();
-		int minBuildHeight = world.getMinBuildHeight();
-		int maxBuildHeight = world.getMaxBuildHeight();
-		BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-		for (int x = 0; x < 16; x++) {
-			for (int z = 0; z < 16; z++) {
-				int blockX = chunkX + x;
-				int blockZ = chunkZ + z;
-				int walkspaceHeight = 2; // Start at 2 to allow finding floors at the height limit.
-				int waterDepth = 0;
-				Block carpetBlock = null;
-				int carpetY = Integer.MAX_VALUE;
-				for (int layerIndex = 0; layerIndex < layerHeights.length - 1; layerIndex++) {
-					LayerSummary.FloorSummary foundFloor = null;
-					for (int y = layerHeights[layerIndex]; y > layerHeights[layerIndex + 1]; y--) {
-						int sectionIndex = chunk.getSectionIndex(y);
-						SectionSummary section = sections[sectionIndex];
-						if (section == null) {
-							int sectionBottom = SectionPos.sectionToBlockCoord(chunk.getSectionYFromSectionIndex(sectionIndex));
-							walkspaceHeight += (y - sectionBottom + 1);
-							waterDepth = 0;
-							y = sectionBottom;
-							continue;
-						}
-						pos.set(blockX, y, blockZ);
-						BlockState state = section.getBlockState(x, y, z);
-						Fluid fluid = state.getFluidState().getType();
-						MapColor mapColor = null;
+		ChunkScan.Floors floors = ChunkScan.scan(sections, chunk.getMinSection(), chunkX, chunkZ, world.getMinBuildHeight(), world.getMaxBuildHeight(), layerHeights, world, biomePalette::findOrAdd, blockPalette::findOrAdd);
+		putLayers(layerHeights, ChunkScan.layers(floors, chunkX, chunkZ, layerHeights, pos -> world.getBrightness(LightLayer.BLOCK, pos), null, null));
+	}
 
-						if (!state.blocksMotion() && fluid.isSame(Fluids.EMPTY)) {
-							walkspaceHeight++;
-							waterDepth = 0;
-							if (walkspaceHeight >= MINIMUM_AIR_DEPTH && state.getMapColor(world, pos) != MapColor.NONE) {
-								carpetY = y;
-								carpetBlock = state.getBlock();
-							}
-						} else if (fluid.isSame(Fluids.WATER) || fluid.isSame(Fluids.FLOWING_WATER)) { // keep walkspace when traversing water
-							waterDepth++;
-						} else { // Blocks Movement or Has Non-Water Fluid.
-							if (foundFloor == null) {
-								if (carpetY == y + 1) {
-									int carpetLight = world.getBrightness(LightLayer.BLOCK, pos.setY(carpetY));
-									int waterLight = waterDepth == 0 ? 0 : world.getBrightness(LightLayer.BLOCK, pos.setY(y + 1 + waterDepth));
-									pos.setY(y);
-									foundFloor = new LayerSummary.FloorSummary(carpetY, biomePalette.findOrAdd(section.getBiomeEntry(x, carpetY, z, minBuildHeight, maxBuildHeight).value()), blockPalette.findOrAdd(carpetBlock), carpetLight, waterDepth, waterLight);
-									if (carpetY > layerHeights[layerIndex]) { // Actually a floor for the layer above
-										if (layerFloors[layerIndex - 1][x * 16 + z] == null) layerFloors[layerIndex - 1][x * 16 + z] = foundFloor;
-										foundFloor = null;
-									}
-									// Carpeted glass needs to reset walkspaces
-									walkspaceHeight = 0;
-									waterDepth = 0;
-								} else if (walkspaceHeight >= MINIMUM_AIR_DEPTH && (mapColor = state.getMapColor(world, pos)) != MapColor.NONE) {
-									int biome = biomePalette.findOrAdd(section.getBiomeEntry(x, y, z, minBuildHeight, maxBuildHeight).value());
-									int block = blockPalette.findOrAdd(state.getBlock());
-									int light = world.getBrightness(LightLayer.BLOCK, pos.setY(y + 1));
-									int waterLight = waterDepth == 0 ? 0 : world.getBrightness(LightLayer.BLOCK, pos.setY(y + 1 + waterDepth));
-									pos.setY(y);
-									foundFloor = new LayerSummary.FloorSummary(y, biome, block, light, waterDepth, waterLight);
-								}
-							}
-							if (mapColor == null) mapColor = state.getMapColor(world, pos);
-							if (mapColor != MapColor.NONE) { // Don't reset walkspace for glass/barriers/etc.
-								walkspaceHeight = 0;
-								waterDepth = 0; // Prevents a glass block on the ocean floor from hiding all the water
-							}
-						}
-					}
-					layerFloors[layerIndex][x * 16 + z] = foundFloor;
-				}
-			}
-		}
-		for (int i = 0; i < layerFloors.length; i++) {
-			this.layers.put(layerHeights[i], LayerSummary.fromSummaries(layerFloors[i], layerHeights[i]));
+	/**
+	 * A summary scanned from a snapshot, with light read and palette indices mapped now (sisby-folk/surveyor#148).
+	 */
+	ChunkSummary(@Nullable Integer airCount, int[] layerHeights, LayerSummary[] layers) {
+		this.airCount = airCount;
+		putLayers(layerHeights, layers);
+	}
+
+	private void putLayers(int[] layerHeights, LayerSummary[] layers) {
+		for (int i = 0; i < layers.length; i++) {
+			this.layers.put(layerHeights[i], layers[i]);
 		}
 	}
 

@@ -22,6 +22,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.block.Block;
@@ -181,6 +182,17 @@ public class RegionSummary {
 		if (world.getHeight() == 0) return;
 		if (chunks == null) readNbt(regionPos, false);
 		set(RegionPos.regionRelative(chunk.getPos().x), RegionPos.regionRelative(chunk.getPos().z), new ChunkSummary(world, chunk, DimensionSupport.getSummaryLayers(world), biomePalette, blockPalette, !(world instanceof ServerLevel)));
+		dirty();
+	}
+
+	/**
+	 * Publishes a chunk summarised on a worker; light is read now, on the level's thread (sisby-folk/surveyor#148).
+	 */
+	synchronized void putScanned(Level world, ChunkSummaryJob job) {
+		if (Surveyor.CONFIG.terrain == SystemMode.FROZEN) return;
+		if (chunks == null) readNbt(regionPos, false);
+		ChunkPos pos = job.snapshot.pos;
+		set(RegionPos.regionRelative(pos.x), RegionPos.regionRelative(pos.z), job.toSummary(biomePalette, blockPalette, p -> world.getBrightness(LightLayer.BLOCK, p)));
 		dirty();
 	}
 
