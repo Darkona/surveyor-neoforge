@@ -174,4 +174,21 @@ class SurveyorSourceGuardTest {
 	void paletteViewConcurrent() throws IOException {
 		assertTrue(read("util/RegistryPalette.java").contains("values = new CopyOnWriteArrayList<>()"), "the client thread reads palette values in singleplayer");
 	}
+
+	@Test
+	@DisplayName("Positions are only sent when someone in the group moved or turned")
+	void positionsOnlyOnChange() throws IOException {
+		String src = read("ServerSummary.java");
+		assertTrue(src.contains("playerSummary.markPositionSynced()) changed = true;"), "each online player's position is compared with the last one sent");
+		assertTrue(src.contains("if (online < 2 || !changed) continue;"), "an unchanged group sends nothing");
+		String player = read("PlayerSummary.java");
+		assertTrue(player.contains("if (positionSynced && state == syncedPositionState) return false;"));
+	}
+
+	@Test
+	@DisplayName("POIs from chunks still generating are skipped when poiLandmarksFromWorldgen is off")
+	void worldgenPoisOptional() throws IOException {
+		String src = read("landmark/PoiLandmarks.java");
+		assertTrue(src.contains("} else if (Surveyor.CONFIG.builtins.poiLandmarksFromWorldgen) {"), "the deferral must honour the option");
+	}
 }
