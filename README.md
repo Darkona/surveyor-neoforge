@@ -70,6 +70,7 @@ This fork keeps Surveyor's features, mod id, save format and network format, so 
 - Joining or leaving a share group drops the old group's explored areas and structures instead of leaving them on the map.
 - A landmark saved as both present and removed is no longer deleted from the clients that know it, and removing landmarks while the landmark system is frozen no longer throws.
 - Singleplayer map mods can read landmarks and terrain palettes while the built-in server changes them without crashing.
+- Maps of servers behind a proxy that share a seed no longer overwrite each other: the server sends a world id and the client keeps each server's map in its own folder, copied once from the old seed folder. Servers or clients without it keep the seed folder.
 
 **New features**
 - Lodestones and other POIs placed by world generation no longer make the server finish generating their chunk on the spot (stalls, worse with C2ME); their landmark is added once the chunk has loaded. Option `builtins.poiLandmarksFromWorldgen` skips them entirely.
@@ -86,6 +87,8 @@ This fork keeps Surveyor's features, mod id, save format and network format, so 
 - Asking for a group's shared map no longer copies every member's exploration.
 - Checking whether a region can be unloaded, done every time a chunk unloads, no longer creates hundreds of objects.
 - Working out who receives a sent chunk no longer builds sets of players for every chunk.
+- Loaded chunks are recorded on a background thread instead of the server thread, with the same result; option `asyncChunkSummaries`.
+- Structure regions are read when needed and dropped from memory when none of their chunks is loaded, instead of all staying in memory from startup.
 
 ## Credits and license
 
