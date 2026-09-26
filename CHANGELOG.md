@@ -58,6 +58,10 @@ until the date listed.
   dimension created while playing.
 - Singleplayer: map mods reading landmarks and terrain palettes while the built-in server changes them can no longer
   crash.
+- Maps of servers behind a proxy (Velocity, BungeeCord) that share a seed no longer overwrite each other. The server
+  keeps a world id in `data/surveyor/world_id.dat` and sends it when a player joins; the client keeps that server's map
+  in `data/surveyor/<world id>/`, copied once from the old seed folder, which is left in place. Servers and clients
+  without this keep using the seed folder, and the network stays compatible with the original. (surveyor#131)
 
 ### Player positions
 - Players in spectator mode or with invisibility no longer show up on other players' maps; they keep their last visible
@@ -75,6 +79,11 @@ until the date listed.
 - A group's shared map is a live view instead of a copy of every member's exploration.
 - The region unload check, run on every chunk unload, no longer creates hundreds of objects.
 - Working out who receives a sent chunk no longer builds sets of players for every chunk.
+- Loaded chunks are recorded on a background thread instead of the server thread, which removes the tick spikes of
+  several players exploring at once. The recorded map is the same. Option `asyncChunkSummaries` turns it off.
+  (surveyor#148)
+- Structures are no longer all kept in memory from startup: a structure region is read when something asks for it,
+  and dropped again once none of its chunks is loaded. Same files as before. (surveyor#115)
 
 ### Tests
 - Regression tests for region coordinates and encodings, packed terrain values, the terrain palette, landmark saving
