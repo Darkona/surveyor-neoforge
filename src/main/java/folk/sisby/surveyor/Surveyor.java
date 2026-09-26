@@ -159,6 +159,7 @@ public class Surveyor {
 
 	private static void onWorldTick(ServerLevel world) {
 		WorldTerrain.onTick(world);
+		WorldStructures.onTick(world);
 		PoiLandmarks.onTick(world);
 		if ((world.getGameTime() & 7) != 0) return;
 		for (ServerPlayer player : world.players()) {

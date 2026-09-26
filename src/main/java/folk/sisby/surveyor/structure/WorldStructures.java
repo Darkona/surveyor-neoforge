@@ -36,6 +36,7 @@ import net.minecraft.world.level.levelgen.structure.StructureStart;
 import net.minecraft.world.level.levelgen.structure.StructureType;
 import net.minecraft.world.level.levelgen.structure.pieces.StructurePieceType;
 import java.io.File;
+import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -55,13 +56,21 @@ public class WorldStructures {
 	protected final Map<ResourceKey<Structure>, ResourceKey<StructureType<?>>> structureTypes = new ConcurrentHashMap<>();
 	protected final Multimap<ResourceKey<Structure>, TagKey<Structure>> structureTags = Multimaps.synchronizedSetMultimap(HashMultimap.create());
 	protected boolean dirty = false;
+	// Regions are read from and saved to this folder; null for summaries made without one.
+	protected final @Nullable File folder;
+	public static final int UNLOAD_TICKS = 600;
 
 	public static WorldStructures of(Level world) {
 		return Optional.ofNullable(world).map(WorldSummary::of).map(WorldSummary::structures).orElse(null);
 	}
 
 	public WorldStructures(WorldSummary summary, Map<RegionPos, RegionStructureSummary> regions, Map<ResourceKey<Structure>, ResourceKey<StructureType<?>>> structureTypes, Multimap<ResourceKey<Structure>, TagKey<Structure>> structureTags) {
+		this(summary, regions, structureTypes, structureTags, null);
+	}
+
+	public WorldStructures(WorldSummary summary, Map<RegionPos, RegionStructureSummary> regions, Map<ResourceKey<Structure>, ResourceKey<StructureType<?>>> structureTypes, Multimap<ResourceKey<Structure>, TagKey<Structure>> structureTags, @Nullable File folder) {
 		this.summary = summary;
+		this.folder = folder;
 		this.regions.putAll(regions);
 		this.structureTypes.putAll(structureTypes);
 		this.structureTags.putAll(structureTags);
@@ -76,6 +85,10 @@ public class WorldStructures {
 	}
 
 	protected static WorldStructures readNbt(WorldSummary summary, CompoundTag nbt, Map<RegionPos, RegionStructureSummary> regions) {
+		return readNbt(summary, nbt, regions, null);
+	}
+
+	protected static WorldStructures readNbt(WorldSummary summary, CompoundTag nbt, Map<RegionPos, RegionStructureSummary> regions, @Nullable File folder) {
 		Map<ResourceKey<Structure>, ResourceKey<StructureType<?>>> structureTypes = new ConcurrentHashMap<>();
 		Multimap<ResourceKey<Structure>, TagKey<Structure>> structureTags = HashMultimap.create();
 		CompoundTag structuresCompound = nbt.getCompound(KEY_STRUCTURES);
@@ -88,9 +101,9 @@ public class WorldStructures {
 			structureTags.putAll(key, tags);
 		}
 		for (RegionStructureSummary region : regions.values()) {
-			region.starts.rowMap().keySet().removeIf(k -> !structureTypes.containsKey(k));
+			region.retainKeys(structureTypes::containsKey);
 		}
-		return new WorldStructures(summary, regions, structureTypes, structureTags);
+		return new WorldStructures(summary, regions, structureTypes, structureTags, folder);
 	}
 
 	public static WorldStructures load(WorldSummary summary, File folder) {
@@ -103,9 +116,39 @@ public class WorldStructures {
 				Surveyor.LOGGER.error("[Surveyor] Error loading structure summary file for {}.", summary.dimension().location(), e);
 			}
 		}
+		// Fix (sisby-folk/surveyor#115): only index the starts; pieces are read when first asked for.
 		Map<RegionPos, RegionStructureSummary> regions = new HashMap<>();
-		ChunkUtil.getRegionNbt(folder, "s").forEach((pos, nbt) -> regions.put(pos, RegionStructureSummary.readNbt(nbt)));
-		return readNbt(summary, worldNbt, regions);
+		ChunkUtil.getRegionFiles(folder, "s").forEach((pos, file) -> {
+			try {
+				regions.put(pos, RegionStructureSummary.index(file, pos, NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap())));
+			} catch (IOException | ReportedNbtException e) {
+				Surveyor.LOGGER.error("[Surveyor] Error loading region nbt file {}.", file.getName(), e);
+			}
+		});
+		return readNbt(summary, worldNbt, regions, folder);
+	}
+
+	private RegionStructureSummary newRegion(RegionPos regionPos) {
+		return new RegionStructureSummary(folder == null ? null : regionFile(folder, regionPos), regionPos);
+	}
+
+	private static File regionFile(File folder, RegionPos pos) {
+		return new File(folder, "s.%d.%d.dat".formatted(pos.x(), pos.z()));
+	}
+
+	/**
+	 * Drops the pieces of regions with no loaded chunk from memory; they're read again when asked for.
+	 */
+	public static void onTick(ServerLevel world) {
+		if (world.getServer().getTickCount() % UNLOAD_TICKS != 0) return;
+		WorldStructures structures = WorldStructures.of(world);
+		if (structures != null) structures.unloadIdle(world);
+	}
+
+	public void unloadIdle(Level world) {
+		for (RegionStructureSummary region : regions.values()) {
+			if (region.isLoaded() && !region.isDirty() && region.isUnloaded(world)) region.unload();
+		}
 	}
 
 	public static void onChunkLoad(ServerLevel world, LevelChunk chunk) {
@@ -175,7 +218,7 @@ public class WorldStructures {
 			Surveyor.LOGGER.error("Cowardly refusing to save structure {} as it has no structure type! Report this to the structure mod author!", key.location());
 			return;
 		}
-		regions.computeIfAbsent(regionPos, k -> new RegionStructureSummary()).put(world, start);
+		regions.computeIfAbsent(regionPos, this::newRegion).put(world, start);
 		List<TagKey<Structure>> tags = world.registryAccess().registryOrThrow(Registries.STRUCTURE).wrapAsHolder(start.getStructure()).tags().toList();
 		structureTypes.put(key, type.orElseThrow());
 		structureTags.putAll(key, tags);
@@ -186,7 +229,7 @@ public class WorldStructures {
 	public void put(ResourceKey<Structure> key, ChunkPos pos, StructureStartSummary start, ResourceKey<StructureType<?>> type, Collection<TagKey<Structure>> tagKeys) {
 		if (Surveyor.CONFIG.structures == SystemMode.FROZEN) return;
 		RegionPos regionPos = RegionPos.of(pos);
-		regions.computeIfAbsent(regionPos, k -> new RegionStructureSummary()).put(key, pos, start);
+		regions.computeIfAbsent(regionPos, this::newRegion).put(key, pos, start);
 		structureTypes.put(key, type);
 		structureTags.putAll(key, tagKeys);
 		dirty();
@@ -206,21 +249,24 @@ public class WorldStructures {
 	}
 
 	public int save(File folder) {
+		return save(null, folder);
+	}
+
+	/**
+	 * Saves what changed; with a level, regions with no loaded chunk are also dropped from memory once written.
+	 */
+	public int save(@Nullable Level world, File folder) {
 		List<RegionPos> savedRegions = new ArrayList<>();
 		if (isDirty()) {
 			File structureFile = new File(folder, "structures.dat");
 			CompoundTag structureCompound = writeNbt(new CompoundTag());
 			SafeNbtWriter.write(structureFile.toPath(), structureCompound);
 			dirty = false;
-			regions.forEach((pos, summary) -> {
-				if (!summary.isDirty()) return;
-				savedRegions.add(pos);
-				CompoundTag regionCompound = summary.writeNbt(new CompoundTag());
-				File regionFile = new File(folder, "s.%d.%d.dat".formatted(pos.x(), pos.z()));
-				SafeNbtWriter.write(regionFile.toPath(), regionCompound);
-				summary.dirty = false;
-			});
 		}
+		regions.forEach((pos, summary) -> {
+			boolean unload = world != null && summary.isLoaded() && summary.isUnloaded(world);
+			if (summary.save(regionFile(folder, pos), unload)) savedRegions.add(pos);
+		});
 		return savedRegions.size();
 	}
 
