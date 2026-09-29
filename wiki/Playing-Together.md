@@ -1,49 +1,49 @@
 # Playing Together
 
-With Surveyor on the server, the map is **cooperative**.
+When the server has Surveyor, the map is **cooperative**.
 
 ## One shared map (default)
 
-With `globalSharing = true` (the default), every player is in one big group:
+With `globalSharing = true` (the default), all players are in one big group:
 
-- terrain explored by anyone appears on everyone's map;
-- structures and waypoints are shared;
-- everyone sees where everyone else is — also players in other dimensions and, faded, players who are offline.
+- Terrain that anyone explores shows on the map of everyone.
+- Structures and waypoints are shared.
+- Everyone sees where everyone else is, also players in other dimensions and, faded, players who are offline.
 
-This suits friends playing together. **On a public server, turn it off** (`globalSharing = false` in `config/surveyor.toml` on the server).
+This works well for friends who play together. **On a public server, turn it off** with `globalSharing = false` in `config/surveyor.toml` on the server.
 
 ## Groups
 
 With `globalSharing = false`, each player starts alone:
 
-- `/surveyor share <player>` — join that player's group (or bring them into yours);
-- `/surveyor unshare` — leave your group.
+- `/surveyor share <player>`: join the group of that player, or bring them into yours.
+- `/surveyor unshare`: leave your group.
 
-Everything a group member explored is shared with the whole group from then on.
+From then on, the whole group shares everything that a member explored.
 
-## Choosing what is shared
+## What is shared
 
-The `[networking]` section of the configuration decides, for each kind of data, how far it travels:
+The `[networking]` section of the configuration sets how far each kind of data travels:
 
 | Value | Meaning |
 |---|---|
 | `SERVER` | everyone on the server gets it |
 | `GROUP` | your group gets it (default for map data) |
-| `SOLO` | only you — kept on the server as a backup |
+| `SOLO` | only you. The server keeps it as a backup |
 | `NONE` | never sent |
 
-This is set separately for `terrain`, `structures`, `landmarks` (server-wide landmarks), `waypoints` (player-made) and `positions` (where players are). See [Configuration](Configuration).
+Each of these has its own setting: `terrain`, `structures`, `landmarks` (server-wide landmarks), `waypoints` (made by players) and `positions` (where players are). See [Configuration](Configuration).
 
 ## Who sees whom on the map
 
-Where players appear is decided by `positions`:
+The `positions` option sets where players show:
 
 - `SERVER` (default): everyone sees every player, anywhere in the world.
-- `GROUP`: you only see the players in your group. Combine it with `globalSharing = false`, so groups are made with `/surveyor share`.
+- `GROUP`: you see only the players in your group. Use it with `globalSharing = false`, so that players make groups with `/surveyor share`.
 - `SOLO` or `NONE`: nobody sees other players.
 
-Players in spectator mode or with invisibility are never shown to others while `hideHiddenPlayers = true` (default); their friends keep seeing where they were last visible.
+While `hideHiddenPlayers = true` (default), other players never see players in spectator mode or with invisibility. Their friends see where they were last visible.
 
 ## Your map follows you
 
-The server keeps each player's exploration. Change computers or reinstall the game, and your map is sent back to you when you join.
+The server keeps the exploration of each player. If you change computers or install the game again, the server sends your map back when you join.

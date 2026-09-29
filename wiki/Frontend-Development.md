@@ -1,6 +1,6 @@
 # Writing a map frontend
 
-Build Surveyor from source and publish it locally (`./gradlew publishToMavenLocal`), then depend on it from your NeoForge project:
+Build Surveyor from source and publish it to your local Maven repository (`./gradlew publishToMavenLocal`). Then add it as a dependency of your NeoForge project:
 
 ```groovy
 repositories {
@@ -14,69 +14,59 @@ dependencies {
 
 #### Initial Setup
 
-Client map mods should always use `SurveyorClientEvents` - this ensures only explored areas will be provided in singleplayer.
+Client map mods should always use `SurveyorClientEvents`. With these events, singleplayer gives you only the explored areas.
 
-Tune into `WorldLoad` and queue up the provided keys for rendering.<br/>
-This event will trigger when the client world has access to surveyor data and the player is available.
+Listen to `WorldLoad` and put the keys it gives you in your render queue. The event fires when the client world has access to Surveyor data and the player is available.
 
-`terrain` contains all available chunks by region. `WorldTerrainSummary.toKeys()` converts this into ChunkPos.<br/>
-`structures` contains all structure starts by key + ChunkPos.<br/>
-`landmarks` contains all landmarks (POIs, waypoints, death markers, etc.) by type + BlockPos.
+- `terrain` has all available chunks, by region. `WorldTerrainSummary.toKeys()` turns it into ChunkPos values.
+- `structures` has all structure starts, by key and ChunkPos.
+- `landmarks` has all landmarks (POIs, waypoints, death markers and others), by type and BlockPos.
 
-You can get these from the world summary later using `keySet()` methods - check the event implementation.<br/>
-Pass in `SurveyorClient.getExploration()` to ensure unexplored areas are hidden.
+Later, you can get the same data from the world summary with the `keySet()` methods. The event implementation shows how. Pass in `SurveyorClient.getExploration()` so that unexplored areas stay hidden.
 
-If you want to save memory, you should save and unload each RegionSummary after its initial bake is complete.
+To save memory, save and unload each RegionSummary after its first bake is complete.
 
 ##### Live Updates
 
-Also tune into `TerrainUpdated`, `StructuresAdded`, `LandmarksAdded` to add to your render queues.<br/>
-These fire whenever the client player should see something new (usually via exploration).<br/>
-They can also fire before `ClientPlayerLoad`, so let any of them create your map data.
+Also listen to `TerrainUpdated`, `StructuresAdded` and `LandmarksAdded`, and add what they give you to your render queues. They fire when the client player should see something new, usually because of exploration. They can also fire before `ClientPlayerLoad`, so let any of them create your map data.
 
-Tune into `LandmarksRemoved` as well but without a queue - just remove from your map/queue directly.
+Listen to `LandmarksRemoved` too, but without a queue. Remove the landmarks from your map or queue directly.
 
-This fork adds `ExplorationReset` (`SurveyorClientEvents.Register.explorationReset`): it fires when the client's shared exploration is replaced rather than extended, e.g. when the player's share group changes. Chunks and structures reported before may no longer be explored, so drop what you drew and rebuild it from the world summaries and `SurveyorClient.getExploration()`.
+This fork adds `ExplorationReset` (`SurveyorClientEvents.Register.explorationReset`). It fires when the shared exploration of the client is replaced instead of extended, for example when the share group of the player changes. Chunks and structures that you got before may not be explored anymore. Drop what you drew and build it again from the world summaries and `SurveyorClient.getExploration()`.
 
 #### Terrain Rendering
 
-First, generate a top layer (with any desired height limits) using `get(ChunkPos).toSingleLayer()`.<br/>
-This will produce a raw layer summary of one-dimensional arrays:
+First, make a top layer with `get(ChunkPos).toSingleLayer()`, with any height limits you want. The result is a raw layer summary of one-dimensional arrays:
 
-* **exists** - True where a floor exists, false otherwise - where false, all other fields are junk.
-* **depths** - The distance of the floor below your specified world height. so y = worldHeight - depth.
-* **blocks** - The floor block. Indexed per-region via `getBlockPalette(ChunkPos)`.
-* **biomes** - The floor biome. Indexed per-region via `getBiomePalette(ChunkPos)`.
-* **lightLevels** - The block light level directly above the floor (i.e. the block light for its top face). 0-15.
-* **waterLights** - The block light level directly above the water's surface (if there is one). 0-15.
-* **waterDepths** - How deep the contiguous water above the floor is.
-	* All other liquid surfaces are considered floors, but water is special-cased.
-	* The sea floor (e.g. sand) is recorded, and this depth value indicates the water surface instead.
-	* This allows maps to show water depth shading, but also hide water completely if desired.
+* **exists**: true where a floor exists, false otherwise. Where it is false, all other fields are junk.
+* **depths**: the distance of the floor below the world height that you gave, so y = worldHeight - depth.
+* **blocks**: the floor block. Indexed per region through `getBlockPalette(ChunkPos)`.
+* **biomes**: the floor biome. Indexed per region through `getBiomePalette(ChunkPos)`.
+* **lightLevels**: the block light level directly above the floor, that is, the block light of its top face. 0-15.
+* **waterLights**: the block light level directly above the surface of the water, if there is water. 0-15.
+* **waterDepths**: the depth of the continuous water above the floor.
+	* Surfaces of all other liquids count as floors. Water is a special case.
+	* Surveyor records the sea floor (for example sand), and this depth value gives the water surface.
+	* With this, maps can shade water by depth, or hide water completely.
 
-All arrays can be indexed by `x * 16 + z`, where x and z are relative to the chunk.<br/>
-Use these arrays to render and store map data for that chunk (pixels, buffers, whichever).<br/>
-Remember that you'll be rendering hundreds of thousands of chunks here - optimize this process hard.
+Index all arrays with `x * 16 + z`, where x and z are relative to the chunk. Use these arrays to render and store the map data of that chunk, as pixels, buffers or anything else. You will render hundreds of thousands of chunks, so make this step as fast as you can.
 
 #### Structure Rendering
 
-Along with the key and ChunkPos, you can get the type and any tags using `getType(key)` and `getTags(key)`.
+With the key and the ChunkPos, `getType(key)` and `getTags(key)` give the type and the tags of a structure.
 
-You can access a full summary of the structure (e.g. to draw its bounding boxes) using `get(key, ChunkPos)`.<br/>
-This includes piece data like boxes, direction, IDs, etc.
+`get(key, ChunkPos)` gives a full summary of the structure, for example to draw its bounding boxes. It includes piece data such as boxes, direction and IDs.
 
 #### Landmark Rendering & Management
 
-Landmarks are an arbitrary ID and can be filled with arbitrary bits of [Component Data](https://github.com/sisby-folk/surveyor/blob/1.20/src/main/java/folk/sisby/surveyor/landmark/component/LandmarkComponentTypes.java)!
+A landmark has an arbitrary ID and can hold arbitrary bits of [Component Data](https://github.com/sisby-folk/surveyor/blob/1.20/src/main/java/folk/sisby/surveyor/landmark/component/LandmarkComponentTypes.java).
 
-When rendering them, you should check their components for useful bits like position, name, and color - try have a strategy for rendering everything!
+When you render landmarks, check their components for useful data such as position, name and color. Have a plan to render every landmark.
 
-To add a landmark, just use `WorldSummary.of(world).landmarks().put(Landmark.create(owner, id, b -> b.add(..., ...))`.<br/>
-Note for addons that this works fine on either side - though clients can only send through landmarks owned by them (aka waypoints).
-
+To add a landmark, use `WorldSummary.of(world).landmarks().put(Landmark.create(owner, id, b -> b.add(..., ...))`. For addons: this works on either side, but clients can only send landmarks that they own, that is, waypoints.
 
 #### Player Rendering
 
-You can use `SurveyorClient.getFriends()` to get a set of players to draw on the map.
+`SurveyorClient.getFriends()` gives a set of players to draw on the map.
 
-The players are represented abstractly, providing UUID, username, global position, yaw, and online status.
+Each player is an abstract entry with a UUID, username, global position, yaw and online status.
