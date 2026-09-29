@@ -7,6 +7,18 @@ date listed. "Closes" means this fork fully handles that bug or feature request.
 against" and "Addresses" mean it handles only the part the entry describes, or removes a likely cause of a crash
 whose report is not complete enough to confirm the fix. "Answers" means the issue is a question, answered in the wiki.
 
+## 2026-09-29
+
+### Troubleshooting
+- New option `debug` (or the JVM argument `-Dsurveyor.debug=true`): logs what Surveyor does to `latest.log` with the
+  prefix `[Surveyor/debug]`, for bug reports and test servers. Rare events get a line each (landmarks, POIs, structure
+  discoveries, share groups, the world id and map folder); busy activity (chunk summaries, region files, packets,
+  positions) is summed up every 100 ticks. Off, it costs nothing.
+
+### Tests
+- New coverage: chunk scan allocation, a config-screen label for every option, event-driven position sync, the
+  `poiLandmarksFromWorldgen` option, and debug mode.
+
 ## 2026-09-28
 
 ### NeoForge port
