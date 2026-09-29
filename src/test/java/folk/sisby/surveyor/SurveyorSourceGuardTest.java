@@ -143,7 +143,9 @@ class SurveyorSourceGuardTest {
 	void hiddenPlayersNotSent() throws IOException {
 		String src = read("ServerSummary.java");
 		assertTrue(src.contains("if (!isHidden(player)) onlinePlayers.put(uuid, PlayerSummary.of(player));"), "periodic position updates skip hidden players");
-		assertTrue(src.contains("if (online && player != null && isHidden(player)) return;"), "save-time updates skip hidden players");
+		assertTrue(src.contains("if (online && player != null && isHidden(player)) {") && src.contains("S2CGroupUpdatedPacket.of(uuid, newSummary)"), "save-time updates skip hidden players");
+		String update = src.substring(src.indexOf("if (online && player != null && isHidden(player)) {"));
+		assertTrue(update.indexOf("return;") < update.indexOf("S2CGroupUpdatedPacket.of("), "return before sending");
 	}
 
 	@Test
@@ -189,6 +191,8 @@ class SurveyorSourceGuardTest {
 	@DisplayName("POIs from chunks still generating are skipped when poiLandmarksFromWorldgen is off")
 	void worldgenPoisOptional() throws IOException {
 		String src = read("landmark/PoiLandmarks.java");
-		assertTrue(src.contains("} else if (Surveyor.CONFIG.builtins.poiLandmarksFromWorldgen) {"), "the deferral must honour the option");
+		String skip = src.substring(src.indexOf("} else if (!Surveyor.CONFIG.builtins.poiLandmarksFromWorldgen) {"));
+		skip = skip.substring(0, skip.indexOf("} else {"));
+		assertFalse(skip.contains("byChunk"), "the deferral must honour the option");
 	}
 }

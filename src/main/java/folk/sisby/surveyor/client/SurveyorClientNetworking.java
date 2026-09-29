@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.client;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import com.google.common.collect.Multimap;
 import folk.sisby.surveyor.PlayerSummary;
 import folk.sisby.surveyor.Surveyor;
@@ -37,7 +38,9 @@ public class SurveyorClientNetworking {
 		SurveyorNetworking.C2S_SENDER = p -> {
 			ClientPacketListener connection = Minecraft.getInstance().getConnection();
 			if (connection == null || !connection.hasChannel(p.type())) return;
-			p.toPayloads(connection.registryAccess()).forEach(PacketDistributor::sendToServer);
+			java.util.List<folk.sisby.surveyor.packet.SurveyorPacket> payloads = p.toPayloads(connection.registryAccess());
+			payloads.forEach(PacketDistributor::sendToServer);
+			if (SurveyorDebug.on) SurveyorDebug.traffic("sent", p.type().id(), payloads.size(), 1);
 		};
 		SurveyorNetworking.S2C_RECEIVER = (packet, context) -> {
 			switch (packet) {
@@ -89,6 +92,7 @@ public class SurveyorClientNetworking {
 		SurveyorClient.sendKnownData(handler);
 		// Fix: the group's exploration was replaced; map mods kept drawing chunks the new group hasn't explored.
 		SurveyorClientEvents.Invoke.explorationReset();
+		if (SurveyorDebug.on) SurveyorDebug.log("Share group changed: exploration replaced ({} regions), ExplorationReset fired", packet.chunks().size());
 		Surveyor.LOGGER.info("[Surveyor] Received updated share group of {} from the server - {}", packet.players().size(), packet.players().values().stream().map(PlayerSummary::username).collect(Collectors.joining(", ")));
 	}
 

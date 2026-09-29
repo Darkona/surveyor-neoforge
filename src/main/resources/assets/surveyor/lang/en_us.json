@@ -8,6 +8,7 @@
 	"surveyor.configuration.lazyClientUpdating": "Lazy client updating",
 	"surveyor.configuration.asyncChunkSummaries": "Summarise chunks in the background",
 	"surveyor.configuration.forceUpdateLandmarks": "Force-update landmarks",
+	"surveyor.configuration.debug": "Debug mode (log activity)",
 	"surveyor.configuration.networking": "Networking",
 	"surveyor.configuration.globalSharing": "Global sharing",
 	"surveyor.configuration.waypoints": "Waypoints",

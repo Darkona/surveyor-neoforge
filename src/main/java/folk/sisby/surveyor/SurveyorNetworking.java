@@ -84,11 +84,13 @@ public class SurveyorNetworking {
 	}
 
 	private static void receiveClient(S2CPacket packet, IPayloadContext context) {
+		if (SurveyorDebug.on) SurveyorDebug.traffic("received", packet.type().id(), 1, 1);
 		S2C_RECEIVER.accept(packet, context);
 	}
 
 	private static <T extends SyncPacket> void receiveSync(T packet, IPayloadContext context, ServerPacketHandler<T> serverHandler) {
 		if (context.flow().isClientbound()) {
+			if (SurveyorDebug.on) SurveyorDebug.traffic("received", packet.type().id(), 1, 1);
 			S2C_RECEIVER.accept(packet, context);
 		} else {
 			handleServer(packet, context, serverHandler);
@@ -200,6 +202,7 @@ public class SurveyorNetworking {
 
 	private static <T extends C2SPacket> void handleServer(T packet, IPayloadContext context, ServerPacketHandler<T> handler) {
 		ServerPlayer player = (ServerPlayer) context.player();
+		if (SurveyorDebug.on) SurveyorDebug.traffic("received", packet.type().id(), 1, 1);
 		handler.handle(player.server, player, packet);
 	}
 

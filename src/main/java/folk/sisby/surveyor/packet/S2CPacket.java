@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.packet;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import com.google.common.base.Predicates;
 import folk.sisby.surveyor.ServerSummary;
 import folk.sisby.surveyor.Surveyor;
@@ -20,10 +21,13 @@ public interface S2CPacket extends SurveyorPacket {
 		if (players.isEmpty()) return;
 		List<SurveyorPacket> split = this.toPayloads(players.iterator().next().registryAccess());
 		if (split.isEmpty()) return;
+		int sent = 0;
 		for (ServerPlayer player : players) {
 			if (!player.connection.hasChannel(type()) || player.getServer().isSingleplayerOwner(player.getGameProfile())) continue;
 			split.forEach(p -> PacketDistributor.sendToPlayer(player, p));
+			sent++;
 		}
+		if (SurveyorDebug.on && sent > 0) SurveyorDebug.traffic("sent", type().id(), split.size(), sent);
 	}
 
 	default void send(ServerPlayer player) {

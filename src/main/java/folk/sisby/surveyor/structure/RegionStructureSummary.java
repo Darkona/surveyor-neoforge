@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.structure;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import com.google.common.collect.Multimap;
 import com.google.common.collect.Table;
 import com.google.common.collect.HashMultimap;
@@ -142,6 +143,7 @@ public class RegionStructureSummary {
 		loadFailed = false;
 		if (index.isEmpty() || file == null || !file.exists()) return starts;
 		try {
+			SurveyorDebug.count(SurveyorDebug.Count.STRUCTURE_REGIONS_READ);
 			CompoundTag structuresCompound = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap()).getCompound(KEY_STRUCTURES);
 			int missing = 0;
 			for (Map.Entry<ResourceKey<Structure>, LongSet> entry : index.entrySet()) {
@@ -260,7 +262,10 @@ public class RegionStructureSummary {
 		SafeNbtWriter.write(file.toPath(), nbt).whenComplete((v, t) -> {
 			synchronized (RegionStructureSummary.this) {
 				pendingWrites--;
-				if (unloadAfterWrite && !dirty && pendingWrites == 0) starts = null;
+				if (unloadAfterWrite && !dirty && pendingWrites == 0) {
+					SurveyorDebug.count(SurveyorDebug.Count.STRUCTURE_REGIONS_DROPPED);
+					starts = null;
+				}
 			}
 		});
 		return true;
@@ -272,6 +277,7 @@ public class RegionStructureSummary {
 	synchronized void unload() {
 		if (starts == null || dirty || file == null) return;
 		if (pendingWrites == 0) {
+			SurveyorDebug.count(SurveyorDebug.Count.STRUCTURE_REGIONS_DROPPED);
 			starts = null;
 		} else {
 			unloadAfterWrite = true;

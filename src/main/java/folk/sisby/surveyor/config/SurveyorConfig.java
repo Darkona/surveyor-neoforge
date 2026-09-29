@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.config;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -20,6 +21,7 @@ public class SurveyorConfig {
 	public boolean lazyClientUpdating = true;
 	public boolean asyncChunkSummaries = true;
 	public boolean forceUpdateLandmarks = true;
+	public boolean debug = false;
 	public Networking networking = new Networking();
 	public Builtins builtins = new Builtins();
 
@@ -70,6 +72,7 @@ public class SurveyorConfig {
 	private static final ModConfigSpec.BooleanValue LAZY_CLIENT_UPDATING;
 	private static final ModConfigSpec.BooleanValue ASYNC_CHUNK_SUMMARIES;
 	private static final ModConfigSpec.BooleanValue FORCE_UPDATE_LANDMARKS;
+	private static final ModConfigSpec.BooleanValue DEBUG;
 	private static final ModConfigSpec.BooleanValue NET_GLOBAL_SHARING;
 	private static final ModConfigSpec.EnumValue<NetworkMode> NET_TERRAIN;
 	private static final ModConfigSpec.EnumValue<NetworkMode> NET_STRUCTURES;
@@ -100,6 +103,7 @@ public class SurveyorConfig {
 		LAZY_CLIENT_UPDATING = b.comment("Ignores chunk changes that don't affect the amount of air in the chunk", "Saves on performance, a little inaccurate sometimes.").define("lazyClientUpdating", d.lazyClientUpdating);
 		ASYNC_CHUNK_SUMMARIES = b.comment("[Server] Summarises loaded chunks on a background thread instead of the server thread.", "Same map data; turn off to go back to summarising in place.").define("asyncChunkSummaries", d.asyncChunkSummaries);
 		FORCE_UPDATE_LANDMARKS = b.comment("Ignores known landmarks when syncing landmarks to the client", "A temporary fix until landmarks have some kind of revision counter").define("forceUpdateLandmarks", d.forceUpdateLandmarks);
+		DEBUG = b.comment("Logs what Surveyor does to latest.log, prefixed [Surveyor/debug]: chunk summaries, region saves, structures, landmarks, POIs, packets, share groups and the world id.", "Busy activity is summed up every 100 ticks. Also on with the JVM argument -Dsurveyor.debug=true.").define("debug", d.debug);
 
 		b.push("networking");
 		NET_GLOBAL_SHARING = b.comment("[Server] Whether to place every player in a single share group", "Disables /surveyor share and /surveyor unshare").define("globalSharing", d.networking.globalSharing);
@@ -146,6 +150,8 @@ public class SurveyorConfig {
 		lazyClientUpdating = LAZY_CLIENT_UPDATING.get();
 		asyncChunkSummaries = ASYNC_CHUNK_SUMMARIES.get();
 		forceUpdateLandmarks = FORCE_UPDATE_LANDMARKS.get();
+		debug = DEBUG.get();
+		SurveyorDebug.configure(debug);
 		networking.globalSharing = NET_GLOBAL_SHARING.get();
 		networking.terrain = NET_TERRAIN.get();
 		networking.structures = NET_STRUCTURES.get();

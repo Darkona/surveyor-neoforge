@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.landmark;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import folk.sisby.surveyor.Surveyor;
 import folk.sisby.surveyor.landmark.component.LandmarkComponentTypes;
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
@@ -42,8 +43,14 @@ public final class PoiLandmarks {
 	public static void onPoiAdded(ServerLevel world, BlockPos pos) {
 		if (WorldLandmarks.of(world) == null || tracked(world, pos) == null) return;
 		if (world.getChunkSource().getChunkNow(pos.getX() >> 4, pos.getZ() >> 4) != null) {
+			SurveyorDebug.count(SurveyorDebug.Count.POIS_ADDED);
 			add(world, pos);
-		} else if (Surveyor.CONFIG.builtins.poiLandmarksFromWorldgen) {
+		} else if (!Surveyor.CONFIG.builtins.poiLandmarksFromWorldgen) {
+			if (SurveyorDebug.on) SurveyorDebug.log("{}: POI at {} in a generating chunk skipped (poiLandmarksFromWorldgen is off)", world.dimension().location(), pos);
+			SurveyorDebug.count(SurveyorDebug.Count.POIS_SKIPPED_WORLDGEN);
+		} else {
+			if (SurveyorDebug.on) SurveyorDebug.log("{}: POI at {} waits for its chunk to finish generating", world.dimension().location(), pos);
+			SurveyorDebug.count(SurveyorDebug.Count.POIS_DEFERRED);
 			Pending pending = PENDING.computeIfAbsent(world.dimension(), k -> new Pending());
 			synchronized (pending) {
 				long chunk = ChunkPos.asLong(pos.getX() >> 4, pos.getZ() >> 4);
@@ -87,8 +94,11 @@ public final class PoiLandmarks {
 					if (positions == null) pending.byChunk.put(chunk, positions = new LongArrayList(2));
 					positions.add(packed);
 				}
+				SurveyorDebug.count(SurveyorDebug.Count.POIS_WAITING_AGAIN);
 				continue;
 			}
+			if (SurveyorDebug.on) SurveyorDebug.log("{}: deferred POI at {} resolved", world.dimension().location(), TICK_POS);
+			SurveyorDebug.count(SurveyorDebug.Count.POIS_RESOLVED);
 			add(world, TICK_POS.immutable());
 		}
 	}

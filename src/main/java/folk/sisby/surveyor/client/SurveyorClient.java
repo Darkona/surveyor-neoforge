@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.client;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
@@ -78,7 +79,9 @@ public class SurveyorClient {
 	 * The folder name for this server: its world id when it sent one, else the seed (sisby-folk/surveyor#131).
 	 */
 	public static String resolveSaveFolder(long biomeSeed, @Nullable UUID worldId) {
-		return SaveFolders.folderName(getSaveRoot(), biomeSeed, worldId);
+		String folder = SaveFolders.folderName(getSaveRoot(), biomeSeed, worldId);
+		if (SurveyorDebug.on) SurveyorDebug.log("Map folder {} ({})", folder, worldId == null ? "no world id: seed folder" : folder.equals(worldId.toString()) ? "world id" : "world id copy failed: seed folder");
+		return folder;
 	}
 
 	public static File getSavePath(long biomeSeed) {
@@ -278,6 +281,7 @@ public class SurveyorClient {
 		});
 		NeoForge.EVENT_BUS.addListener(LevelTickEvent.Post.class, e -> {
 			if (e.getLevel() instanceof ClientLevel world) onClientWorldTick(world);
+			if (SurveyorDebug.on && e.getLevel() instanceof ClientLevel world && !Minecraft.getInstance().isLocalServer()) SurveyorDebug.tick(world.getGameTime());
 		});
 		SurveyorEvents.Register.landmarksAdded(Surveyor.id("client"), ((summary, landmarks) -> {
 			SurveyorExploration exploration = getExploration();

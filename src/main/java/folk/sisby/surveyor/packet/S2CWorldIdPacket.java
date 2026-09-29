@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.packet;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import folk.sisby.surveyor.Surveyor;
 import io.netty.buffer.ByteBuf;
 import java.lang.ref.WeakReference;
@@ -28,6 +29,7 @@ public record S2CWorldIdPacket(UUID worldId) implements CustomPacketPayload {
 
 	public static void receive(S2CWorldIdPacket packet, IPayloadContext context) {
 		remember(context.connection(), packet.worldId());
+		if (SurveyorDebug.on) SurveyorDebug.log("World id {} received from the server", packet.worldId());
 	}
 
 	static void remember(Connection connection, UUID worldId) {

@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.structure;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import folk.sisby.surveyor.util.SafeNbtWriter;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.HashMultimap;
@@ -125,6 +126,7 @@ public class WorldStructures {
 				Surveyor.LOGGER.error("[Surveyor] Error loading region nbt file {}.", file.getName(), e);
 			}
 		});
+		if (SurveyorDebug.on) SurveyorDebug.log("{}: indexed {} structure regions in {}", summary.dimension().location(), regions.size(), folder);
 		return readNbt(summary, worldNbt, regions, folder);
 	}
 
@@ -223,6 +225,7 @@ public class WorldStructures {
 		structureTypes.put(key, type.orElseThrow());
 		structureTags.putAll(key, tags);
 		dirty();
+		SurveyorDebug.count(SurveyorDebug.Count.STRUCTURES_ADDED);
 		SurveyorEvents.Invoke.structuresAdded(summary, key, start.getChunkPos());
 	}
 

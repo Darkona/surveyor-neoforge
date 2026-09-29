@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.terrain;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import folk.sisby.surveyor.Surveyor;
 import folk.sisby.surveyor.SurveyorEvents;
 import folk.sisby.surveyor.SurveyorExploration;
@@ -73,6 +74,7 @@ public class WorldTerrain {
 	public static WorldTerrain load(WorldSummary summary, File folder) {
 		Map<RegionPos, RegionSummary> regions = new HashMap<>();
 		ChunkUtil.getRegionFiles(folder, "c").forEach((pos, file) -> regions.put(pos, RegionSummary.fromFile(file, summary, pos)));
+		if (SurveyorDebug.on) SurveyorDebug.log("{}: found {} terrain regions in {}", summary.dimension().location(), regions.size(), folder);
 		return new WorldTerrain(summary, regions, folder);
 	}
 
@@ -131,13 +133,19 @@ public class WorldTerrain {
 				ChunkSummaryJob job = new ChunkSummaryJob(snapshot, finished::add);
 				pending.put(chunk.getPos().toLong(), job); // a job still pending for this chunk is now stale
 				job.submit();
+				SurveyorDebug.count(SurveyorDebug.Count.CHUNKS_OFF_THREAD);
+				SurveyorDebug.max(SurveyorDebug.Count.CHUNKS_PENDING_MAX, pending.size());
 				return;
 			}
+			SurveyorDebug.count(SurveyorDebug.Count.CHUNKS_IN_PLACE_READS_LEVEL);
+		} else if (SurveyorDebug.on && world instanceof ServerLevel) {
+			SurveyorDebug.count(pending.size() >= MAX_PENDING && Surveyor.CONFIG.asyncChunkSummaries ? SurveyorDebug.Count.CHUNKS_IN_PLACE_QUEUE_FULL : SurveyorDebug.Count.CHUNKS_IN_PLACE_ASYNC_OFF);
 		}
 		putInPlace(world, chunk);
 	}
 
 	private void putInPlace(Level world, LevelChunk chunk) {
+		SurveyorDebug.count(SurveyorDebug.Count.CHUNKS_IN_PLACE);
 		if (!pending.isEmpty()) pending.remove(chunk.getPos().toLong());
 		regions.computeIfAbsent(RegionPos.of(chunk.getPos()), k -> RegionSummary.fromEmpty(folder, summary, RegionPos.of(chunk.getPos()))).putChunk(world, chunk);
 		SurveyorEvents.Invoke.terrainUpdated(WorldSummary.of(world), chunk.getPos());
@@ -146,12 +154,14 @@ public class WorldTerrain {
 	private void publish(ServerLevel world, ChunkSummaryJob job) {
 		ChunkPos pos = job.snapshot.pos;
 		if (job.error() != null) {
+			SurveyorDebug.count(SurveyorDebug.Count.CHUNKS_FAILED);
 			Surveyor.LOGGER.error("[Surveyor] Error summarising chunk {} off-thread; summarising it in place.", pos, job.error());
 			LevelChunk chunk = world.getChunkSource().getChunkNow(pos.x, pos.z);
 			if (chunk != null) putInPlace(world, chunk);
 			return;
 		}
 		regions.computeIfAbsent(RegionPos.of(pos), k -> RegionSummary.fromEmpty(folder, summary, RegionPos.of(pos))).putScanned(world, job);
+		SurveyorDebug.count(SurveyorDebug.Count.CHUNKS_PUBLISHED);
 		SurveyorEvents.Invoke.terrainUpdated(summary, pos);
 	}
 
@@ -161,7 +171,10 @@ public class WorldTerrain {
 	public void publishFinished(ServerLevel world) {
 		for (ChunkSummaryJob job; (job = finished.poll()) != null; ) {
 			long key = job.snapshot.pos.toLong();
-			if (pending.get(key) != job) continue; // replaced by a newer summary
+			if (pending.get(key) != job) { // replaced by a newer summary
+				SurveyorDebug.count(SurveyorDebug.Count.CHUNKS_STALE);
+				continue;
+			}
 			pending.remove(key);
 			publish(world, job);
 		}

@@ -100,7 +100,11 @@ public final class ServerSummary {
 		if (file.exists()) {
 			try {
 				CompoundTag nbt = NbtIo.readCompressed(file.toPath(), NbtAccounter.unlimitedHeap());
-				if (nbt.hasUUID(KEY_WORLD_ID)) return nbt.getUUID(KEY_WORLD_ID);
+				if (nbt.hasUUID(KEY_WORLD_ID)) {
+					UUID id = nbt.getUUID(KEY_WORLD_ID);
+					if (SurveyorDebug.on) SurveyorDebug.log("World id {} loaded from {}", id, file);
+					return id;
+				}
 				Surveyor.LOGGER.warn("[Surveyor] World id file {} has no id; creating a new one.", file);
 			} catch (IOException | ReportedNbtException e) {
 				Surveyor.LOGGER.error("[Surveyor] Error loading world id file; creating a new one.", e);
@@ -110,6 +114,7 @@ public final class ServerSummary {
 		CompoundTag nbt = new CompoundTag();
 		nbt.putUUID(KEY_WORLD_ID, id);
 		SafeNbtWriter.write(file.toPath(), nbt);
+		if (SurveyorDebug.on) SurveyorDebug.log("World id {} created in {}", id, file);
 		return id;
 	}
 
@@ -188,6 +193,7 @@ public final class ServerSummary {
 				if (PlayerSummary.of(player) instanceof PlayerSummary.ServerPlayerEntitySummary playerSummary && playerSummary.markPositionSynced()) changed = true;
 			}
 			if (online < 2 || !changed) continue;
+			SurveyorDebug.count(SurveyorDebug.Count.POSITIONS_SENT);
 			Map<UUID, PlayerSummary> onlinePlayers = new HashMap<>();
 			Set<UUID> recipients = new HashSet<>();
 			for (UUID uuid : group) {
@@ -195,6 +201,7 @@ public final class ServerSummary {
 				if (player == null) continue;
 				recipients.add(uuid);
 				if (!isHidden(player)) onlinePlayers.put(uuid, PlayerSummary.of(player));
+				else SurveyorDebug.count(SurveyorDebug.Count.POSITIONS_HIDDEN);
 			}
 			if (onlinePlayers.isEmpty()) continue;
 			new S2CGroupUpdatedPacket(onlinePlayers).send(null, server, p -> recipients.contains(Surveyor.getUuid(p)), Surveyor.CONFIG.networking.positions, true);
@@ -273,7 +280,10 @@ public final class ServerSummary {
 		PlayerSummary newSummary = new PlayerSummary.OfflinePlayerSummary(uuid, nbt, online);
 		offlineSummaries.put(uuid, newSummary);
 		ServerPlayer player = server.getPlayerList().getPlayer(uuid);
-		if (online && player != null && isHidden(player)) return;
+		if (online && player != null && isHidden(player)) {
+			if (SurveyorDebug.on) SurveyorDebug.log("Position of hidden player {} not sent", player.getGameProfile().getName());
+			return;
+		}
 		S2CGroupUpdatedPacket.of(uuid, newSummary).send(null, server, getSharingPlayers(uuid, Surveyor.CONFIG.networking.positions, false)::contains, Surveyor.CONFIG.networking.positions, false);
 	}
 
@@ -317,6 +327,7 @@ public final class ServerSummary {
 			getGroup(player2).add(player1);
 			shareGroups.put(player1, getGroup(player2));
 		}
+		if (SurveyorDebug.on) SurveyorDebug.log("Share group joined: {} and {}; group of {} now", player1, player2, getGroup(player1).size());
 		for (ServerPlayer friend : getSharingPlayers(player1, NetworkMode.GROUP, true)) {
 			UUID uuid = Surveyor.getUuid(friend);
 			new S2CGroupChangedPacket(getGroupSummaries(uuid), getSharingExploration(uuid, Surveyor.CONFIG.networking.terrain, false).chunks(), getSharingExploration(uuid, Surveyor.CONFIG.networking.structures, false).starts()).send(friend);
@@ -330,6 +341,7 @@ public final class ServerSummary {
 		getGroup(player).remove(player); // Shares set instance with group members.
 		shareGroups.put(player, new HashSet<>());
 		getGroup(player).add(player);
+		if (SurveyorDebug.on) SurveyorDebug.log("Share group left by {}; {} players told", player, groupPlayers.size());
 		for (ServerPlayer friend : groupPlayers) {
 			UUID uuid = Surveyor.getUuid(friend);
 			new S2CGroupChangedPacket(getGroupSummaries(uuid), getSharingExploration(uuid, Surveyor.CONFIG.networking.terrain, false).chunks(), getSharingExploration(uuid, Surveyor.CONFIG.networking.structures, false).starts()).send(friend);

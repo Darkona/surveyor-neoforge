@@ -87,6 +87,7 @@ public class Surveyor {
 						for (StructurePiece piece : start.getChildren()) {
 							if (insideInflated(piece.getBoundingBox(), pos)) {
 								exploration.addStructure(world.dimension(), structureKey, startPos);
+								if (SurveyorDebug.on) SurveyorDebug.log("{} discovered {} (start chunk {}) in {}", player.getGameProfile().getName(), structureKey.location(), startPos, world.dimension().location());
 								if (CONFIG.discoveryMessages) {
 									player.sendSystemMessage(Component.literal("Discovered ").append(Component.literal(WordUtils.capitalize(structureKey.location().getPath().replace("_", " "))).withStyle(ChatFormatting.GREEN)).append(Component.literal(" at ")).append(Component.literal("[%s,%s]".formatted(startPos.x << 4, startPos.z << 4)).withStyle(ChatFormatting.GOLD)).withStyle(ChatFormatting.GRAY), true);
 								}
@@ -146,7 +147,10 @@ public class Surveyor {
 		NeoForge.EVENT_BUS.addListener(LevelEvent.Unload.class, e -> {
 			if (e.getLevel() instanceof ServerLevel world) PoiLandmarks.onLevelUnload(world);
 		});
-		NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, e -> ServerSummary.onTick(e.getServer()));
+		NeoForge.EVENT_BUS.addListener(ServerTickEvent.Post.class, e -> {
+			ServerSummary.onTick(e.getServer());
+			if (SurveyorDebug.on) SurveyorDebug.tick(e.getServer().getTickCount());
+		});
 		NeoForge.EVENT_BUS.addListener(LevelTickEvent.Post.class, e -> {
 			if (e.getLevel() instanceof ServerLevel world) onWorldTick(world);
 		});

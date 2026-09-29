@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.terrain;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import folk.sisby.surveyor.Surveyor;
 import folk.sisby.surveyor.WorldSummary;
 import folk.sisby.surveyor.config.SystemMode;
@@ -108,6 +109,7 @@ public class RegionSummary {
 			if (oldSet != null && oldSet.cardinality() > bitSet.cardinality()) Surveyor.LOGGER.warn("[Surveyor] Reloading region {} caused {} chunks to be dropped.", regionPos, oldSet.cardinality() - bitSet.cardinality());
 			return;
 		}
+		SurveyorDebug.count(SurveyorDebug.Count.REGIONS_READ);
 		this.biomePalette = new RegistryPalette<>(summary.manager().registryOrThrow(Registries.BIOME));
 		this.blockPalette = new RegistryPalette<>(summary.manager().registryOrThrow(Registries.BLOCK));
 		this.chunks = new ChunkSummary[RegionPos.CHUNK_SIZE][RegionPos.CHUNK_SIZE];
@@ -211,8 +213,10 @@ public class RegionSummary {
 		CompoundTag nbt;
 		synchronized (this) {
 			if (!isDirty()) {
-				if (unload && pendingWrites == 0) chunks = null;
-				else if (unload) unloadAfterWrite = true;
+				if (unload && pendingWrites == 0) {
+					if (chunks != null) SurveyorDebug.count(SurveyorDebug.Count.REGIONS_UNLOADED);
+					chunks = null;
+				} else if (unload) unloadAfterWrite = true;
 				return;
 			}
 			nbt = writeNbt();
@@ -220,10 +224,14 @@ public class RegionSummary {
 			pendingWrites++;
 			unloadAfterWrite = unload;
 		}
+		SurveyorDebug.count(SurveyorDebug.Count.REGIONS_WRITTEN);
 		SafeNbtWriter.write(saveFile.toPath(), nbt).whenComplete((v, t) -> {
 			synchronized (RegionSummary.this) {
 				pendingWrites--;
-				if (unloadAfterWrite && !dirty && pendingWrites == 0) chunks = null;
+				if (unloadAfterWrite && !dirty && pendingWrites == 0) {
+					SurveyorDebug.count(SurveyorDebug.Count.REGIONS_UNLOADED);
+					chunks = null;
+				}
 			}
 		});
 	}

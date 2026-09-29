@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.util;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import folk.sisby.surveyor.Surveyor;
 import it.unimi.dsi.fastutil.ints.IntIterable;
 import it.unimi.dsi.fastutil.ints.IntIterator;
@@ -75,6 +76,7 @@ public class RegistryPalette<T> implements IntIterable {
 
 	public int findOrAdd(T value) {
 		int id = value == null ? -1 : registry.getId(value);
+		if (id < 0) SurveyorDebug.count(SurveyorDebug.Count.PALETTE_FALLBACKS);
 		if (id < 0 && WARNED.add(registry.key().location() + "/" + value)) {
 			Surveyor.LOGGER.warn("[Surveyor] {} isn't in the {} registry; mapping it as {}. Report this to the mod that adds it.", value, registry.key().location(), registry.getKey(registry.byId(fallbackId)));
 		}

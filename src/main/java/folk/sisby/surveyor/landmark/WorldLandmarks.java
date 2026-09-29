@@ -1,5 +1,6 @@
 package folk.sisby.surveyor.landmark;
 
+import folk.sisby.surveyor.SurveyorDebug;
 import folk.sisby.surveyor.util.SafeNbtWriter;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.HashMultimap;
@@ -258,12 +259,21 @@ public class WorldLandmarks {
 	}
 
 	public Table<UUID, ResourceLocation, Landmark> putForBatch(Table<UUID, ResourceLocation, Landmark> changed, Landmark landmark) {
-		if (Surveyor.CONFIG.landmarks == SystemMode.FROZEN) return changed;
+		if (Surveyor.CONFIG.landmarks == SystemMode.FROZEN) {
+			if (SurveyorDebug.on) SurveyorDebug.log("{}: landmark {} of {} not added, landmarks are FROZEN", debugDimension(), landmark.id(), landmark.owner());
+			return changed;
+		}
+		if (SurveyorDebug.on) SurveyorDebug.log("{}: landmark {} of {} added", debugDimension(), landmark.id(), landmark.owner());
+		SurveyorDebug.count(SurveyorDebug.Count.LANDMARKS_PUT);
 		landmarks.put(landmark.owner(), landmark.id(), landmark);
 		if (removed != null) removed.remove(landmark.owner(), landmark.id());
 		dirty();
 		changed.put(landmark.owner(), landmark.id(), landmark);
 		return changed;
+	}
+
+	private Object debugDimension() {
+		return summary == null ? "?" : summary.dimension().location();
 	}
 
 	public Table<UUID, ResourceLocation, Landmark> putForBatch(Landmark landmark) {
@@ -283,8 +293,13 @@ public class WorldLandmarks {
 	}
 
 	public Table<UUID, ResourceLocation, Landmark> removeForBatch(Table<UUID, ResourceLocation, Landmark> changed, UUID uuid, ResourceLocation id) {
-		if (Surveyor.CONFIG.landmarks == SystemMode.FROZEN) return changed;
+		if (Surveyor.CONFIG.landmarks == SystemMode.FROZEN) {
+			if (SurveyorDebug.on) SurveyorDebug.log("{}: landmark {} of {} not removed, landmarks are FROZEN", debugDimension(), id, uuid);
+			return changed;
+		}
 		if (!landmarks.contains(uuid, id)) return changed;
+		if (SurveyorDebug.on) SurveyorDebug.log("{}: landmark {} of {} removed", debugDimension(), id, uuid);
+		SurveyorDebug.count(SurveyorDebug.Count.LANDMARKS_REMOVED);
 		Landmark landmark = landmarks.remove(uuid, id);
 		if (removed != null) removed.put(uuid, id);
 		dirty();
