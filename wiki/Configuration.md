@@ -21,6 +21,7 @@ Each takes `DISABLED` (off), `FROZEN` (existing data is loaded but never changes
 | `lazyClientUpdating` | `true` | On multiplayer clients, only re-record a chunk when the amount of air in it changed. Faster; rarely misses a change. |
 | `asyncChunkSummaries` | `true` | Servers record loaded chunks on a background thread instead of the server thread. Same map; turn it off if you suspect it. |
 | `forceUpdateLandmarks` | `true` | Always resend landmarks when joining, instead of trusting what the client already has. |
+| `debug` | `false` | Log what Surveyor does to `latest.log`, for bug reports. See [Data and Troubleshooting](Data-and-Troubleshooting#debug-mode). |
 
 ## `[networking]`
 
