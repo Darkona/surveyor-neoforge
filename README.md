@@ -75,6 +75,7 @@ This fork keeps Surveyor's features, mod id, save format and network format, so 
 **New features**
 - Lodestones and other POIs placed by world generation no longer make the server finish generating their chunk on the spot (stalls, worse with C2ME); their landmark is added once the chunk has loaded. Option `builtins.poiLandmarksFromWorldgen` skips them entirely.
 - Players in spectator mode or with invisibility no longer show up on other players' maps; they keep their last visible position. Option `networking.hideHiddenPlayers`.
+- Debug mode (`debug`, or `-Dsurveyor.debug=true`) logs what Surveyor does, for bug reports and test servers.
 
 **For map mods**
 - New client event `ExplorationReset`, fired when the player's share group changes and the shared exploration is replaced, so a map can drop areas the new group hasn't explored.
