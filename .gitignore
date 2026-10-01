@@ -33,3 +33,6 @@ run-client/
 
 # Game logs from dev runs
 logs/
+
+# Sibling mods cloned by .github/ci-deps.sh
+/deps/
