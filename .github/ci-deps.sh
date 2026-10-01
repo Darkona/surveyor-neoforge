@@ -1,32 +1,68 @@
 #!/usr/bin/env bash
-# Publishes the sibling mods this one compiles against to mavenLocal, so the build resolves them as on a dev machine.
-# dev: each sibling at its release tag if it exists, else at the head of its branch for the same Minecraft version
-# (the default branch while a repo has no version branches).
-# release: the release tag only; a missing tag fails the build, so siblings are always released first.
+# Publishes to mavenLocal the mods of our own that this repo compiles against, cloned from GitHub into deps/, so the
+# build resolves them as on a dev machine. It reads gradle.properties:
+#   ci_deps=repo:version_property,...  direct dependencies only; the indirect ones come from each dependency's own
+#                                      ci_deps, read from its gradle.properties after cloning it
+#   ci_deps_owner=Darkona              GitHub owner of those repos (default Darkona)
+# dev: each dependency at its tag v<version> if it exists, else at its branch named like this repo's minecraft_label,
+#      else at its default branch.
+# release: the tag only; a missing tag fails the build, so dependencies are always released first.
+# Each repo is cloned once and published after its own dependencies (deepest first). Without ci_deps it does nothing.
 set -euo pipefail
 mode=${1:-dev}
-prop() { grep "^$1=" "${2:-gradle.properties}" | cut -d= -f2; }
-label=$(prop minecraft_label)
+case "$mode" in dev|release) ;; *) echo "usage: $0 [dev|release]" >&2; exit 2 ;; esac
+root=$PWD
+prop() {   # name file: the value of a property, or nothing
+    sed -n "s/^[[:space:]]*$1[[:space:]]*=[[:space:]]*//p" "$2" | tail -n 1 | tr -d '\r' | sed 's/[[:space:]]*$//'
+}
+label=$(prop minecraft_label gradle.properties)
+declare -A seen=()
 
-clone() {   # repo version: clones into deps/<repo>
-    local repo=$1 ref="v$2"
-    if ! git ls-remote --exit-code --tags "https://github.com/Darkona/${repo}.git" "refs/tags/${ref}" >/dev/null; then
-        [ "$mode" = release ] && { echo "::error::${repo} has no tag ${ref}"; exit 1; }
-        if git ls-remote --exit-code --heads "https://github.com/Darkona/${repo}.git" "refs/heads/${label}" >/dev/null; then
+clone() {   # owner repo version: clones into deps/<repo>
+    local url="https://github.com/$1/$2.git" ref="v$3"
+    if ! git ls-remote --exit-code --tags "$url" "refs/tags/$ref" >/dev/null; then
+        if [ "$mode" = release ]; then echo "::error::$2 has no tag $ref"; exit 1; fi
+        if [ -n "$label" ] && git ls-remote --exit-code --heads "$url" "refs/heads/$label" >/dev/null; then
             ref=$label
         else
-            ref=main
+            ref=$(git ls-remote --symref "$url" HEAD | sed -n 's|^ref: refs/heads/\(.*\)\tHEAD$|\1|p')
+            [ -n "$ref" ] || { echo "::error::cannot find the default branch of $url"; exit 1; }
         fi
     fi
-    echo "${repo} @ ${ref}"
-    git clone -q --depth 1 --branch "$ref" "https://github.com/Darkona/${repo}.git" "deps/${repo}"
+    echo "$2 @ $ref"
+    rm -rf "$root/deps/$2"
+    git clone -q --depth 1 --branch "$ref" "$url" "$root/deps/$2"
 }
-publish() { (cd "deps/$1" && ./gradlew -q publishToMavenLocal); }
 
-case "$(prop mod_id)" in
-    surveyor) ;;
-    antique_atlas)
-        clone surveyor-neoforge "$(prop surveyor_version)"
-        publish surveyor-neoforge ;;
-    *) echo "::error::unknown mod_id"; exit 1 ;;
-esac
+resolve() {   # dir: clones and publishes the ci_deps of <dir>/gradle.properties, deepest first
+    local dir=$1 owner entry repo vprop version
+    local -a entries=()
+    owner=$(prop ci_deps_owner "$dir/gradle.properties")
+    IFS=, read -ra entries <<< "$(prop ci_deps "$dir/gradle.properties")"
+    for entry in "${entries[@]}"; do
+        entry=${entry//[[:space:]]/}
+        [ -n "$entry" ] || continue
+        repo=${entry%%:*} vprop=${entry#*:}
+        if [ "$repo" = "$entry" ] || [ -z "$repo" ] || [ -z "$vprop" ]; then
+            echo "::error::ci_deps entry '$entry' in $dir/gradle.properties is not repo:version_property"; exit 1
+        fi
+        version=$(prop "$vprop" "$dir/gradle.properties")
+        [ -n "$version" ] || { echo "::error::$vprop is not set in $dir/gradle.properties"; exit 1; }
+        if [ -n "${seen[$repo]:-}" ]; then
+            [ "${seen[$repo]}" = "$version" ] || echo "::warning::$repo $version asked by $dir, using ${seen[$repo]}"
+            continue
+        fi
+        seen[$repo]=$version
+        clone "${owner:-Darkona}" "$repo" "$version"
+        if grep -q '^[[:space:]]*ci_deps[[:space:]]*=' "$root/deps/$repo/gradle.properties"; then
+            resolve "$root/deps/$repo"
+        elif [ -f "$root/deps/$repo/.github/ci-deps.sh" ]; then
+            # A dependency tagged before ci_deps existed: its own script knows what it needs.
+            (cd "$root/deps/$repo" && bash .github/ci-deps.sh "$mode")
+        fi
+        echo "publishing $repo"
+        (cd "$root/deps/$repo" && ./gradlew -q publishToMavenLocal)
+    done
+}
+
+resolve "$root"
